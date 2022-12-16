@@ -19,6 +19,7 @@ authors = [
 ]
 description = "Experiments with criticality in Deep Transfer Learning."
 readme = "README.md"
+license = "LICENSE"
 requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Python :: 3",
