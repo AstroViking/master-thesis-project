@@ -1,0 +1,41 @@
+name: master-thesis
+channels:
+  - conda-forge
+dependencies:
+  - bzip2=1.0.8
+  - ca-certificates=2022.12.7
+  - libffi=3.4.2
+  - libsqlite=3.40.0
+  - libzlib=1.2.13
+  - ncurses=6.3
+  - openssl=3.0.7
+  - pip=22.3.1
+  - python=3.9.15
+  - readline=8.1.2
+  - setuptools=65.5.1
+  - tk=8.6.12
+  - tzdata=2022g
+  - wheel=0.38.4
+  - xz=5.2.6
+  - pip:
+    - certifi==2022.12.7
+    - charset-normalizer==2.1.1
+    - contourpy==1.0.6
+    - cycler==0.11.0
+    - fonttools==4.38.0
+    - idna==3.4
+    - kiwisolver==1.4.4
+    - matplotlib==3.6.2
+    - numpy==1.23.5
+    - packaging==22.0
+    - pillow==9.3.0
+    - pyparsing==3.0.9
+    - python-dateutil==2.8.2
+    - requests==2.28.1
+    - scipy==1.9.3
+    - six==1.16.0
+    - torch==1.13.1
+    - torchaudio==0.13.1
+    - torchvision==0.14.1
+    - typing-extensions==4.4.0
+    - urllib3==1.26.13

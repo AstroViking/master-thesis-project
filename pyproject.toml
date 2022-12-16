@@ -6,9 +6,10 @@ build-backend = "hatchling.build"
 type = "conda"
 conda-forge = true
 dependencies = [
-  "pytorch>=22.10.0",
-  "mypy>=0.991",
-  "ruff>=0.0.166",
+  "pytorch",
+  "torchvision",
+  "matplotlib",
+  "numpy",
 ]
 
 [project]
@@ -20,7 +21,7 @@ authors = [
 description = "Experiments with criticality in Deep Transfer Learning."
 readme = "README.md"
 license = "LICENSE"
-requires-python = ">=3.10"
+requires-python = ">=3.9"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
