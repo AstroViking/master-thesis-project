@@ -1,0 +1,31 @@
+[build-system]
+requires = ["hatchling", "hatch-conda"]
+build-backend = "hatchling.build"
+
+[tool.hatch.envs.master-thesis]
+type = "conda"
+conda-forge = true
+dependencies = [
+  "pytorch>=22.10.0",
+  "mypy>=0.991",
+  "ruff>=0.0.166",
+]
+
+[project]
+name = "transfer_learning_criticality"
+version = "0.0.1"
+authors = [
+  { name="Marc Steiner", email="marc.steiner@ini.uzh.ch" },
+]
+description = "Experiments with criticality in Deep Transfer Learning."
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+"Github" = "https://github.com/AstroViking/master-thesis-project/"
+"Thesis" = "https://astroviking.github.io/master-thesis/"
