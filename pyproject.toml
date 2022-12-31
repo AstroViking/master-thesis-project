@@ -1,33 +1,23 @@
 [build-system]
-requires = ["hatchling", "hatch-conda"]
-build-backend = "hatchling.build"
-
-[tool.hatch.envs.master-thesis]
-type = "conda"
-conda-forge = true
-dependencies = [
-  "pytorch",
-  "torchvision",
-  "matplotlib",
-  "numpy",
-]
+requires = ["pdm"]
 
 [project]
-name = "transfer_learning_criticality"
+name = ""
 version = "0.0.1"
+description = ""
 authors = [
-  { name="Marc Steiner", email="marc.steiner@ini.uzh.ch" },
+    {name = "Marc Steiner", email = "msteiner@ini.uzh.ch"},
 ]
-description = "Experiments with criticality in Deep Transfer Learning."
-readme = "README.md"
-license = "LICENSE"
+dependencies = [
+    "pandas>=1.5.2",
+    "numpy>=1.24.1",
+    "plotly>=5.11.0",
+    "torch>=1.13.1",
+    "torchvision>=0.14.1",
+    "kaleido>=0.2.1.post1",
+    "pip>=22.3.1",
+]
 requires-python = ">=3.9"
-classifiers = [
-    "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
-]
+license = {text = "MIT"}
 
-[project.urls]
-"Github" = "https://github.com/AstroViking/master-thesis-project/"
-"Thesis" = "https://astroviking.github.io/master-thesis/"
+[tool.pdm]
