@@ -18,11 +18,13 @@ np.random.seed(random_seed)
 # Set the device
 device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.backends.cuda.is_available() else "cpu"
 
+# Select which dataset to use (either "mnist" or "fashion-mnist")
+dataset_identifier = "mnist"
+
 data_path = Path(__file__).parent.parent.parent / "data"
-model_path = data_path / "pretrained_model.zip"
+model_path = data_path / f"{dataset_identifier}_pretrained_model.zip"
 plot_path = data_path / "plots"
 
-dataset_identifier = "fashion-mnist" #mnist
 train = True
 use_pretrained = False
 
