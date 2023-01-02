@@ -3,10 +3,9 @@ from plotly.subplots import make_subplots
 import pandas as pd
 
 
-def average_correlation_figure(correlations: pd.DataFrame, n_cols = 2):
+def average_correlation_figure(title, correlations: pd.DataFrame, n_cols = 2):
 
     n_categories = len(correlations.index.unique(level='Category'))
-    n_samples = len(correlations.index.unique(level='Sample'))
     n_rows = int(n_categories/n_cols) + 1
 
     fig = make_subplots(
@@ -51,7 +50,7 @@ def average_correlation_figure(correlations: pd.DataFrame, n_cols = 2):
     fig.update_layout(
         height=1000, 
         width=800, 
-        title_text=f"Average correlation of input vectors accros {n_samples} samples"
+        title_text=title
     )
 
     return fig
