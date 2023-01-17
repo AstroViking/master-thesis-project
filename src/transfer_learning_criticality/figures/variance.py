@@ -1,63 +1,64 @@
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pandas as pd
+from numpy.typing import NDArray
 
 
-def layer_variance_figure(title, weight_variances, bias_variances):
+def layer_variance(title: str, weight_variances: NDArray, bias_variances: NDArray) -> go.Figure:
 
-    fig = make_subplots(
+    figure = make_subplots(
         rows=2, 
         cols=2,
         vertical_spacing=0.2,
         horizontal_spacing=0.2
     )
 
-    fig.add_trace(
+    figure.add_trace(
         go.Scatter(
             x=[x for x in range(len(weight_variances))], 
             y=weight_variances,
-            name='Weight',
+            name="Weight",
         ),
         row=1, 
         col=1
     )
-    fig.update_xaxes(
+    figure.update_xaxes(
         title_text="$l$", 
         row=1, 
         col=1
     )
-    fig.update_yaxes(
+    figure.update_yaxes(
         #range=[0, 2],
         title_text="$\sigma_w^2$", 
         row=1, 
         col=1
     )
 
-    fig.add_trace(
+    figure.add_trace(
         go.Scatter(
             x=[x for x in range(len(bias_variances))], 
             y=bias_variances,
-            name='Bias'
+            name="Bias"
         ),
         row=1, 
         col=2
     )
-    fig.update_xaxes(
+    figure.update_xaxes(
         title_text="$l$", 
         row=1, 
         col=2
     )
-    fig.update_yaxes(
+    figure.update_yaxes(
         #range=[0, 2],
         title_text="$\sigma_b^2$",  
         row=1, 
         col=2
     )
 
-    fig.update_layout(
+    figure.update_layout(
         height=1000, 
         width=800, 
         title_text=title
     )
 
-    return fig
+    return figure
