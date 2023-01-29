@@ -3,6 +3,9 @@ from sklearn.metrics import davies_bouldin_score
 import numpy as np
 import pandas as pd
 
+from ._default import set_default_layout
+
+
 def davies_bouldin_index(title: str, activities: pd.DataFrame) -> go.Figure:
 
     n_layers = len(activities.columns.unique(level="Layer"))
@@ -31,5 +34,5 @@ def davies_bouldin_index(title: str, activities: pd.DataFrame) -> go.Figure:
         title_text=title
     )
 
-    return figure
+    return set_default_layout(figure)
 

@@ -1,21 +1,96 @@
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pandas as pd
-import numpy as np
-from itertools import combinations_with_replacement
+
+from ._default import set_default_layout
 
 
-def average_correlation(title: str, activities: pd.DataFrame, n_cols: int = 2) -> go.Figure:
+def average_correlation_same_vs_different_class(title: str, correlations: pd.DataFrame) -> go.Figure:
 
-    class_indices = activities.index.unique(level="Class")
-    layer_indices = activities.columns.unique(level="Layer")
-    sample_indices = activities.index.unique(level="Sample")
+    layer_indices = correlations.columns.unique(level="Layer")
 
-    n_samples = len(sample_indices)
-    n_layers = len(layer_indices)
+    figure = make_subplots(
+        rows=1, 
+        cols=2,
+        horizontal_spacing=0.1,
+        vertical_spacing=0.1
+    )
 
-    class_combinations = list(combinations_with_replacement(class_indices, 2))
-    n_rows = int(len(class_combinations)/n_cols) + 1
+    figure.add_trace(
+        go.Scatter(
+            x=layer_indices, 
+            y=correlations.loc["Same class", (slice(None), "Correlation")], 
+            name="Same class",
+            error_y=dict(
+                type='data',
+                array=correlations.loc["Same class", (slice(None), "Error")],
+                visible=True
+            ),
+            mode="markers"
+        ),
+        row=1, 
+        col=1
+    )
+
+    figure.update_xaxes(
+        title_text="$l$", 
+        row=1, 
+        col=1,
+        automargin=True
+    )
+
+    figure.update_yaxes(
+        range=[-0.2, 1.2],
+        title_text="$\hat{c}(x1, x1)$", 
+        row=1, 
+        col=1,
+        automargin=True
+    )
+
+    figure.add_trace(
+        go.Scatter(
+            x=layer_indices, 
+            y=correlations.loc["Different class", (slice(None), "Correlation")], 
+            name="Different class",
+            error_y=dict(
+                type='data',
+                array=correlations.loc["Different class", (slice(None), "Error")],
+                visible=True
+            ),
+            mode="markers"
+        ),
+        row=1, 
+        col=2
+    )
+
+    figure.update_xaxes(
+        title_text="$l$", 
+        row=1, 
+        col=2,
+        automargin=True
+    )
+
+    figure.update_yaxes(
+        range=[-0.2, 1.2],
+        title_text="$\hat{c}(x1, x2)$", 
+        row=1, 
+        col=2,
+        automargin=True
+    )
+
+    figure.update_layout(
+        autosize=True,
+        title_text=title,
+        width=1600,
+        height=900
+    )
+
+    return set_default_layout(figure)
+
+
+def average_correlation_between_classes(title: str, correlations: pd.DataFrame, n_cols: int = 2) -> go.Figure:
+
+    n_rows = int(len(correlations.index)/n_cols) + 1
 
     figure = make_subplots(
         rows=n_rows, 
@@ -27,22 +102,19 @@ def average_correlation(title: str, activities: pd.DataFrame, n_cols: int = 2) -
     current_row = 1
     current_col = 1
 
-    for c1, c2 in class_combinations:
-
-        correlations = np.zeros(n_layers)
-
-        for l in layer_indices:
-            for s in sample_indices:
-                random_sample_index = np.random.choice(np.delete(sample_indices, s), size=1)[0]
-                correlations[l] += np.corrcoef(activities.loc[(c1, s), l].to_numpy().astype(np.float64), activities.loc[(c2, random_sample_index), l].to_numpy().astype(np.float64))[0][1]
-            
-            correlations[l] /= n_samples
+    for idx in correlations.index:
 
         figure.add_trace(
             go.Scatter(
-                x=layer_indices, 
-                y=correlations, 
-                name=f"Class {c1} vs Class {c2}",
+                x=correlations.columns.unique(level="Layer"), 
+                y=correlations.loc[idx, (slice(None), "Correlation")].to_numpy(), 
+                name=f"Class {idx[0]} vs Class {idx[1]}",
+                error_y=dict(
+                    type='data',
+                    array=correlations.loc[idx, (slice(None), "Error")].to_numpy(),
+                    visible=True
+                ),
+                mode="markers"
             ),
             row=current_row, 
             col=current_col
@@ -70,8 +142,8 @@ def average_correlation(title: str, activities: pd.DataFrame, n_cols: int = 2) -
     figure.update_layout(
         autosize=True,
         title_text=title,
-        width=1500,
+        width=1500 * n_cols/n_rows + 600,
         height=1500
     )
 
-    return figure
+    return set_default_layout(figure)

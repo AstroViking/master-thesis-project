@@ -1,2 +1,4 @@
 from .fdnn import FDNN
-__all__ = ["FDNN"]
+from .cnn import CNN
+
+__all__ = ["FDNN", "CNN"]

@@ -20,6 +20,8 @@ dependencies = [
     "mypy>=0.991",
     "pandas-stubs>=1.2.0.62",
     "torchinfo>=1.7.1",
+    "torch-optimizer>=0.3.0",
+    "pyarrow>=11.0.0",
 ]
 requires-python = ">=3.9"
 license = {text = "MIT"}
