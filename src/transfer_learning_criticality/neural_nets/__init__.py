@@ -1,4 +1,4 @@
-from .fdnn import FDNN
-from .cnn import CNN
+from .feedforward import FeedForwardNet
+from .convolutional import ConvolutionalNet
 
-__all__ = ["FDNN", "CNN"]
+__all__ = ["FeedForwardNet", "ConvolutionalNet"]

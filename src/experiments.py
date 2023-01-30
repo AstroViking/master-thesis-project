@@ -7,18 +7,18 @@ import torchvision.transforms as transforms
 from torchinfo import summary as summarize_model
 import torch_optimizer as optim 
 
-from transfer_learning_criticality.neural_nets import FDNN, CNN
+from transfer_learning_criticality.neural_nets import FeedForwardNet, ConvolutionalNet
 import transfer_learning_criticality.figures as fig
-from transfer_learning_criticality.util.model import train_model, evaluate_model
+from transfer_learning_criticality.util.model import train_model
 from transfer_learning_criticality.util.correlation import calculate_average_correlations
 from transfer_learning_criticality.util.mean_field import MeanField
 
 # Select which dataset to use (either "mnist", "fashion-mnist" or "cifar-10")
-dataset_identifier = "fashion-mnist"
+dataset_identifier = "mnist"
 
 use_pretrained = False
 initialize_at_criticality = True
-use_cnn = True
+use_cnn = False
 
 # Specify how many samples to use per class to test for correlation
 num_samples_per_class = 100
@@ -71,9 +71,6 @@ test_dataset = dataset(root=data_path,
 device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu" # type: ignore[attr-defined]
 
 input_shape = train_dataset[0][0].shape
-input_size = len(train_dataset[0][0].flatten())
-input_width = input_shape[1]
-
 
 init_weight_mean = 0
 init_bias_mean = 0
@@ -87,15 +84,15 @@ if initialize_at_criticality:
     init_weight_var, init_bias_var = mf.sw_sb(qstar, 1)
 
 else:
-    init_bias_std = np.sqrt(0.05) 
-    init_weight_std = np.sqrt(1)
+    init_bias_std = 1 
+    init_weight_std = 1
 
 # Initializing the model
 if use_cnn:
     num_input_channels = input_shape[0] if len(input_shape) == 3 else 1
-    model: torch.nn.Module = CNN(input_width, num_input_channels, hidden_layer_width, num_hidden_layers, num_classes, init_weight_mean, init_weight_var, init_bias_mean, init_bias_var)
+    model: torch.nn.Module = ConvolutionalNet(input_shape, hidden_layer_width, num_hidden_layers, num_classes, init_weight_mean, init_weight_var, init_bias_mean, init_bias_var)
 else:
-    model = FDNN(input_size, hidden_layer_width, num_hidden_layers, num_classes, init_weight_mean, init_weight_var, init_bias_mean, init_bias_var)
+    model = FeedForwardNet(input_shape, hidden_layer_width, num_hidden_layers, num_classes, init_weight_mean, init_weight_var, init_bias_mean, init_bias_var)
 
 summarize_model(model, (batch_size, *input_shape))
 
@@ -131,7 +128,7 @@ with torch.no_grad():
     weight_variances = np.zeros(num_hidden_layers + 1)
     bias_variances = np.zeros(num_hidden_layers + 1)
 
-    if isinstance(model, FDNN):
+    if isinstance(model, FeedForwardNet):
         i = 0
         for layer in model.modules():
             if isinstance(layer, torch.nn.Linear):                
@@ -148,10 +145,12 @@ with torch.no_grad():
     
     else:
 
-        hidden_layer_activities = pd.DataFrame(index=pd.MultiIndex.from_product([[c for c in image_classes], [s for s in range(num_samples_per_class)]], names=["Class", "Sample"]), columns=pd.MultiIndex.from_product([[l for l in range(num_hidden_layers)], [n for n in range(model.hidden_layer_width)]], names=["Layer", "Neuron"]))
+        input_classes = range(len(test_dataset.classes))
 
-        for image_class in test_dataset.classes:
-            class_indices = [idx for idx, target in enumerate(test_dataset.targets) if target == image_class]
+        hidden_layer_activities = pd.DataFrame(index=pd.MultiIndex.from_product([[c for c in input_classes], [s for s in range(num_samples_per_class)]], names=["Class", "Sample"]), columns=pd.MultiIndex.from_product([[l for l in range(num_hidden_layers)], [n for n in range(model.hidden_layer_width)]], names=["Layer", "Neuron"]))
+
+        for c in input_classes:
+            class_indices = [idx for idx, target in enumerate(test_dataset.targets) if target == c]
             class_subset = torch.utils.data.Subset(test_dataset, class_indices)
 
             random_class_indices = np.random.choice(len(class_subset), size=num_samples_per_class, replace=False)
@@ -159,7 +158,7 @@ with torch.no_grad():
             for i in range(num_samples_per_class):
                 random_sample = class_subset[random_class_indices[i]][0]
                 output_activity, hidden_layer_activity =  model.forward(random_sample.to(device), True)
-                hidden_layer_activities.loc[(image_class, i), :] = hidden_layer_activity.flatten()
+                hidden_layer_activities.loc[(c, i), :] = hidden_layer_activity.flatten()
 
         
         hidden_layer_activities.to_pickle(hidden_layer_activities_path)
