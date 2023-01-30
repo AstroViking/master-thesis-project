@@ -11,13 +11,14 @@ from transfer_learning_criticality.neural_nets import FDNN, CNN
 import transfer_learning_criticality.figures as fig
 from transfer_learning_criticality.util.model import train_model, evaluate_model
 from transfer_learning_criticality.util.correlation import calculate_average_correlations
+from transfer_learning_criticality.util.mean_field import MeanField
 
 # Select which dataset to use (either "mnist", "fashion-mnist" or "cifar-10")
-dataset_identifier = "mnist"
+dataset_identifier = "fashion-mnist"
 
-use_pretrained = True
+use_pretrained = False
 initialize_at_criticality = True
-use_cnn = False
+use_cnn = True
 
 # Specify how many samples to use per class to test for correlation
 num_samples_per_class = 100
@@ -27,7 +28,7 @@ num_samples_per_class = 100
 hidden_layer_width = 100 # Layer with for FDNN, number of channels for CNN
 num_hidden_layers = 20
 num_classes = 10
-num_epochs = 20
+num_epochs = 10
 batch_size = 100
 learning_rate = 0.001
 
@@ -73,22 +74,28 @@ input_shape = train_dataset[0][0].shape
 input_size = len(train_dataset[0][0].flatten())
 input_width = input_shape[1]
 
+
+init_weight_mean = 0
+init_bias_mean = 0
+
+if initialize_at_criticality:
+
+    # Calculate weight and bias variance along criticality curve where q* is equal to 1/num_hidden_layers
+    tanh_derivative = lambda x: 1./ np.cosh(x)**2
+    mf = MeanField(np.tanh, tanh_derivative)
+    qstar = 1./num_hidden_layers
+    init_weight_var, init_bias_var = mf.sw_sb(qstar, 1)
+
+else:
+    init_bias_std = np.sqrt(0.05) 
+    init_weight_std = np.sqrt(1)
+
 # Initializing the model
 if use_cnn:
     num_input_channels = input_shape[0] if len(input_shape) == 3 else 1
-    model: torch.nn.Module = CNN(input_width, num_input_channels, hidden_layer_width, num_hidden_layers, num_classes, initialize_at_criticality)
+    model: torch.nn.Module = CNN(input_width, num_input_channels, hidden_layer_width, num_hidden_layers, num_classes, init_weight_mean, init_weight_var, init_bias_mean, init_bias_var)
 else:
-
-    init_weight_mean = 0
-    init_bias_mean = 0
-    if initialize_at_criticality:
-        init_bias_std = np.sqrt(0.05) # Value obtained using Mean Field criticality theory
-        init_weight_std = np.sqrt(1.7603915227624916) # Value obtained using Mean Field criticality theory (1.7603915227624916)
-    else:
-        init_bias_std = np.sqrt(0.05) 
-        init_weight_std = np.sqrt(1)
-
-    model = FDNN(input_size, hidden_layer_width, num_hidden_layers, num_classes, init_weight_mean, init_weight_std, init_bias_mean, init_bias_std)
+    model = FDNN(input_size, hidden_layer_width, num_hidden_layers, num_classes, init_weight_mean, init_weight_var, init_bias_mean, init_bias_var)
 
 summarize_model(model, (batch_size, *input_shape))
 
@@ -141,12 +148,9 @@ with torch.no_grad():
     
     else:
 
-        # Calculate activities for different classes/samples
-        image_classes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-
         hidden_layer_activities = pd.DataFrame(index=pd.MultiIndex.from_product([[c for c in image_classes], [s for s in range(num_samples_per_class)]], names=["Class", "Sample"]), columns=pd.MultiIndex.from_product([[l for l in range(num_hidden_layers)], [n for n in range(model.hidden_layer_width)]], names=["Layer", "Neuron"]))
 
-        for image_class in image_classes:
+        for image_class in test_dataset.classes:
             class_indices = [idx for idx, target in enumerate(test_dataset.targets) if target == image_class]
             class_subset = torch.utils.data.Subset(test_dataset, class_indices)
 

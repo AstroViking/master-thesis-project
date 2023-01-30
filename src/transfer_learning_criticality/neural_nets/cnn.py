@@ -74,16 +74,16 @@ def conv_delta_orthogonal_(tensor: torch.Tensor, gain: float=1.):
 
 class CNN(nn.Module):
 
-    def __init__(self, input_width: int, num_in_channels: int, num_conv_channels: int, num_hidden_layers: int, num_classes: int, initialize: bool=True, kernel_size: int=3, padding_size: int=1):
+    def __init__(self, input_size: int, num_in_channels: int, num_conv_channels: int, num_hidden_layers: int, num_classes: int, init_weight_mean: float=0, init_weight_var: float =1, init_bias_mean: float=0, init_bias_var: float=1, kernel_size: int=3, padding_size: int=1):
         super(CNN, self).__init__()
         self.num_hidden_layers = num_hidden_layers if num_hidden_layers > 1 else 1
         self.num_layers = self.num_hidden_layers + 2
         self.num_in_channels = num_in_channels
-        self.input_width = input_width
+        self.input_size = input_size
 
         self.non_linearity = nn.Tanh()
 
-        input_output_size = self.input_width
+        input_output_size = self.input_size
         input_layers: list[nn.Module] = []
         for stride in [1, 2, 2]:
             input_layers.append(nn.Conv2d(num_in_channels, num_conv_channels, kernel_size=kernel_size, padding=padding_size, stride=stride))
@@ -102,14 +102,21 @@ class CNN(nn.Module):
         self.pool_layer = nn.AvgPool2d(input_output_size)
         self.output_layer = nn.Linear(num_conv_channels, num_classes)
 
-        if initialize:
-            self.apply(self._init_weights)
+        self.init_weight_mean = init_weight_mean
+        self.init_weight_var = init_weight_var
+        self.init_bias_mean = init_bias_mean
+        self.init_bias_var = init_bias_var
+
+        self.apply(self._init_weights)
 
     def _init_weights(self, module: nn.Module):
         if isinstance(module, nn.Conv2d):
-            conv_delta_orthogonal_(module.weight)
+            conv_delta_orthogonal_(module.weight, np.sqrt(self.init_weight_var))
+            if module.bias is not None:
+                module.bias.data.normal_(mean=self.init_bias_mean, std=np.sqrt(self.init_bias_var))
 
     def forward(self, x: torch.Tensor, return_hidden_layer_activities: bool=False) -> Union[torch.Tensor, Tuple[torch.Tensor, NDArray]]:
+        
         if len(x.shape) != 4:
             x = x.reshape((1, *x.shape))
 
@@ -119,14 +126,16 @@ class CNN(nn.Module):
             hidden_layer_activities = np.zeros((self.num_hidden_layers, out.shape[1] * out.shape[2] * out.shape[3]))
             hidden_layer_activities[0, :] = out.view(out.size(0), -1).cpu().numpy()
 
+        out = self.non_linearity(out)
+
         for i, layer in enumerate(self.hidden_layers):
-            out = self.non_linearity(out)
+            
             out = layer(out)
 
             if return_hidden_layer_activities:
                 hidden_layer_activities[i + 1, :] = out.view(out.size(0), -1).cpu().numpy()
          
-        out = self.non_linearity(out)
+            out = self.non_linearity(out)
 
         out = self.pool_layer(out)
         out = out.view(out.size(0), -1)
