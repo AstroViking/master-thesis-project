@@ -67,7 +67,7 @@ test_dataset = dataset(root=data_path,
                         transform=transforms.ToTensor())
 
 # Set the device
-device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.backends.cuda.is_available() else "cpu" # type: ignore[attr-defined]
+device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
 
 input_shape = train_dataset[0][0].shape
 input_size = len(train_dataset[0][0].flatten())
