@@ -10,9 +10,9 @@ import torch_optimizer as optim
 from transfer_learning_criticality.neural_nets import FDNN, CNN
 import transfer_learning_criticality.figures as fig
 from transfer_learning_criticality.util.model import train_model, evaluate_model
-from transfer_learning_criticality.util.correlation import calculate_average_correlations, calculate_average_correlations_same_vs_different_class
+from transfer_learning_criticality.util.correlation import calculate_average_correlations
 
-# Select which dataset to use (either "mnist" or "fashion-mnist")
+# Select which dataset to use (either "mnist", "fashion-mnist" or "cifar-10")
 dataset_identifier = "mnist"
 
 use_pretrained = True
@@ -134,7 +134,7 @@ with torch.no_grad():
     else:
 
         # Calculate activities for different classes/samples
-        image_classes = [1, 2, 3, 9]
+        image_classes = [1, 2, 3, 4, 5, 6, 7, 8, 9]
 
         hidden_layer_activities = pd.DataFrame(index=pd.MultiIndex.from_product([[c for c in image_classes], [s for s in range(num_samples_per_class)]], names=["Class", "Sample"]), columns=pd.MultiIndex.from_product([[l for l in range(num_hidden_layers)], [n for n in range(model.hidden_layer_width)]], names=["Layer", "Neuron"]))
 
@@ -152,8 +152,7 @@ with torch.no_grad():
         
         hidden_layer_activities.to_pickle(hidden_layer_activities_path)
 
-    correlations = calculate_average_correlations(hidden_layer_activities)
-    combined_correlations = calculate_average_correlations_same_vs_different_class(correlations)
+    correlations, combined_correlations = calculate_average_correlations(hidden_layer_activities)
 
     fig.average_correlation_between_classes(f"Average correlation of input vectors accros {num_samples_per_class} samples from {dataset_identifier}", correlations).write_image((plot_path / f"{plot_prefix}_average_correlation_between_classes.png"), scale=3)
     fig.average_correlation_same_vs_different_class(f"Average correlation of input vectors accros {num_samples_per_class} samples from {dataset_identifier}", combined_correlations).write_image((plot_path / f"{plot_prefix}_average_correlation_same_vs_different_class.png"), scale=3)
