@@ -16,9 +16,9 @@ from transfer_learning_criticality.util.mean_field import MeanField
 # Select which dataset to use (either "mnist", "fashion-mnist" or "cifar-10")
 dataset_identifier = "mnist"
 
-use_pretrained = False
+use_pretrained = True
 initialize_at_criticality = True
-use_cnn = False
+use_cnn = True
 
 # Specify how many samples to use per class to test for correlation
 num_samples_per_class = 100
@@ -125,18 +125,33 @@ with torch.no_grad():
     model = model.to(device).eval()
 
     # Plot variances of weights and bias across layers 
-    weight_variances = np.zeros(num_hidden_layers + 1)
-    bias_variances = np.zeros(num_hidden_layers + 1)
-
     if isinstance(model, FeedForwardNet):
+        
+        weight_variances = np.zeros(num_hidden_layers + 1)
+        bias_variances = np.zeros(num_hidden_layers + 1)
+        
         i = 0
         for layer in model.modules():
             if isinstance(layer, torch.nn.Linear):                
-                weight_variances[i] = np.std(layer.weight.cpu().numpy() * np.sqrt(layer.in_features))**2
-                bias_variances[i] = np.std(layer.bias.cpu().numpy())**2
+                weight_variances[i] = np.var(layer.weight.cpu().numpy() * np.sqrt(layer.in_features))
+                bias_variances[i] = np.var(layer.bias.cpu().numpy())
+                i += 1
+
+    elif isinstance(model, ConvolutionalNet):
+
+        weight_variances = np.zeros(num_hidden_layers + 1 + 1)
+        bias_variances = np.zeros(num_hidden_layers + 1 + 1)
+
+        i = 0
+        for layer in model.modules():
+            if isinstance(layer, torch.nn.Conv2d):                
+                weight_variances[i] = np.var(layer.weight.cpu().numpy() * np.sqrt(layer.in_channels * np.prod(layer.kernel_size)))
+                
+                if layer.bias is not None:
+                    bias_variances[i] = np.var(layer.bias.cpu().numpy())
                 i += 1
         
-        fig.model_weight_bias_variance(f"Weight and bias variance across layers for network trained with {dataset_identifier} dataset", weight_variances, bias_variances).write_image(plot_path / f"{plot_prefix}_weight_bias_variance.png", scale=3)
+    fig.model_weight_bias_variance(f"Weight and bias variance across layers for network trained with {dataset_identifier} dataset", weight_variances, bias_variances).write_image(plot_path / f"{plot_prefix}_weight_bias_variance.png", scale=3)
 
     hidden_layer_activities_path = output_path / "hidden_layer_activities.pickle"
     
