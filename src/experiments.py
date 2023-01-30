@@ -142,7 +142,7 @@ with torch.no_grad():
     else:
 
         # Calculate activities for different classes/samples
-        image_classes = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        image_classes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
         hidden_layer_activities = pd.DataFrame(index=pd.MultiIndex.from_product([[c for c in image_classes], [s for s in range(num_samples_per_class)]], names=["Class", "Sample"]), columns=pd.MultiIndex.from_product([[l for l in range(num_hidden_layers)], [n for n in range(model.hidden_layer_width)]], names=["Layer", "Neuron"]))
 
