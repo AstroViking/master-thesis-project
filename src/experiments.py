@@ -27,7 +27,7 @@ num_samples_per_class = 100
 hidden_layer_width = 100 # Layer with for FDNN, number of channels for CNN
 num_hidden_layers = 20
 num_classes = 10
-num_epochs = 5
+num_epochs = 20
 batch_size = 100
 learning_rate = 0.001
 
@@ -36,10 +36,10 @@ plot_prefix = f"{num_samples_per_class}-samples"
 
 data_path = Path(__file__).parent.parent / "data"
 output_path = Path(__file__).parent.parent / "output" / model_prefix
-model_path = output_path / "model.zip"
 plot_path = output_path / "plots"
 
-model_path.parent.mkdir(parents=True, exist_ok=True)
+data_path.mkdir(parents=True, exist_ok=True)
+output_path.mkdir(parents=True, exist_ok=True)
 plot_path.mkdir(parents=True, exist_ok=True)
 
 random_seed = 1234
@@ -67,7 +67,7 @@ test_dataset = dataset(root=data_path,
                         transform=transforms.ToTensor())
 
 # Set the device
-device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
+device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu" # type: ignore[attr-defined]
 
 input_shape = train_dataset[0][0].shape
 input_size = len(train_dataset[0][0].flatten())
@@ -92,25 +92,33 @@ else:
 
 summarize_model(model, (batch_size, *input_shape))
 
-if use_pretrained and (model_path).exists():
+model_path = output_path / "model.zip"
+model_metrics_path = output_path / "model_metrics.pickle"
+
+if use_pretrained and model_path.exists() and model_metrics_path.exists():
     model.load_state_dict(torch.load(model_path))
-    model.eval()
+    model_metrics = pd.read_pickle(model_metrics_path)
+    
 
 else:
     optimizer = optim.DiffGrad(model.parameters(), lr=learning_rate) if use_cnn else torch.optim.Adam(model.parameters(), lr=learning_rate)
 
-    train_model(model, train_dataset, num_epochs, batch_size, 
+    model_metrics = train_model(model, train_dataset, test_dataset, num_epochs, batch_size, 
         torch.nn.CrossEntropyLoss(), 
         optimizer,
-        device=device)
+        device=device
+    )
 
     torch.save(model.state_dict(), model_path)
+    model_metrics.to_pickle(model_metrics_path)
 
-evaluate_model(model, test_dataset, batch_size, device)
+fig.model_accuracy_vs_epoch("", model_metrics).write_image(plot_path / "model_accuracy_vs_epoch.png", scale=3)
+
+print(f"Accuracy of the network on test dataset after training: {model_metrics.iloc[-1].loc['Test Accuracy']}")
 
 with torch.no_grad():
 
-    model = model.to(device)
+    model = model.to(device).eval()
 
     # Plot variances of weights and bias across layers 
     weight_variances = np.zeros(num_hidden_layers + 1)
@@ -124,7 +132,7 @@ with torch.no_grad():
                 bias_variances[i] = np.std(layer.bias.cpu().numpy())**2
                 i += 1
         
-        fig.layer_variance(f"Weight and bias variance across layers for network trained with {dataset_identifier} dataset", weight_variances, bias_variances).write_image(plot_path / f"{plot_prefix}_weight_bias_variance.png")
+        fig.model_weight_bias_variance(f"Weight and bias variance across layers for network trained with {dataset_identifier} dataset", weight_variances, bias_variances).write_image(plot_path / f"{plot_prefix}_weight_bias_variance.png", scale=3)
 
     hidden_layer_activities_path = output_path / "hidden_layer_activities.pickle"
     
@@ -134,7 +142,7 @@ with torch.no_grad():
     else:
 
         # Calculate activities for different classes/samples
-        image_classes = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+        image_classes = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
         hidden_layer_activities = pd.DataFrame(index=pd.MultiIndex.from_product([[c for c in image_classes], [s for s in range(num_samples_per_class)]], names=["Class", "Sample"]), columns=pd.MultiIndex.from_product([[l for l in range(num_hidden_layers)], [n for n in range(model.hidden_layer_width)]], names=["Layer", "Neuron"]))
 
