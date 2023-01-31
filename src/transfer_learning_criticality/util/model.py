@@ -12,6 +12,8 @@ def train_model(model: torch.nn.Module, train_dataset: torch.utils.data.Dataset,
                                     batch_size=batch_size, 
                                     shuffle=True)
     
+    test_accuracy = 0.0
+
     n_total_steps = len(train_loader)
     for epoch in range(num_epochs):
 
@@ -35,12 +37,19 @@ def train_model(model: torch.nn.Module, train_dataset: torch.utils.data.Dataset,
             loss.backward()
             optimizer.step() 
 
-            if (i+1) % 100 == 0:
-                print (f"Epoch [{epoch+1}/{num_epochs}], Step[{i+1}/{n_total_steps}], Loss: {loss.item():.4f}")
+            train_accuracy = 100.0 * n_train_correct / n_train_samples
 
-        results.loc[epoch, "Train Accuracy"] = 100.0 * n_train_correct / n_train_samples 
-        results.loc[epoch, "Test Accuracy"] = evaluate_model(model, test_dataset, batch_size, device)
+            if (i+1) % 100 == 0:
+                print (f"Epoch [{epoch+1}/{num_epochs}], Step[{i+1}/{n_total_steps}], Train Loss: {loss.item():.4f}, Train Accuracy: {train_accuracy:.4f}, Test Accuracy: {test_accuracy:.4f}")
+            
+        test_accuracy = evaluate_model(model, test_dataset, batch_size, device)
         model.train()
+
+        results.loc[epoch, "Train Accuracy"] = train_accuracy
+        results.loc[epoch, "Test Accuracy"] = test_accuracy
+
+        print (f"Epoch [{epoch+1}/{num_epochs}], Step[{i+1}/{n_total_steps}], Train Loss: {loss.item():.4f}, Train Accuracy: {train_accuracy:.4f}, Test Accuracy: {test_accuracy:.4f}")
+        
         
     model.eval()
 
