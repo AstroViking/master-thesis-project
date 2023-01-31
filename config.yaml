@@ -1,0 +1,45 @@
+
+experiments:
+  - dataset: "MNIST"
+    model: "FeedForwardNet"
+    model_parameters:
+      hidden_layer_width: 100
+      num_hidden_layers: 20
+      non_linearity: "tanh"
+    num_epochs: 10
+    batch_size: 100
+    learning_rate: 0.001
+    num_samples_per_class: 100
+
+  - dataset: "FashionMNIST"
+    model: "FeedForwardNet"
+    model_parameters:
+      hidden_layer_width: 100
+      num_hidden_layers: 20
+      non_linearity: "selu"
+    num_epochs: 10
+    batch_size: 100
+    learning_rate: 0.001
+    num_samples_per_class: 100
+  
+  - dataset: "MNIST"
+    model: "ConvolutionalNet"
+    model_parameters:
+      hidden_layer_width: 32
+      num_hidden_layers: 50
+      non_linearity: "selu"
+    num_epochs: 5
+    batch_size: 100
+    learning_rate: 0.001
+    num_samples_per_class: 10
+
+  - dataset: "CIFAR10"
+    model: "ConvolutionalNet"
+    model_parameters:
+      hidden_layer_width: 32
+      num_hidden_layers: 50
+      non_linearity: "selu"
+    num_epochs: 5
+    batch_size: 100
+    learning_rate: 0.001
+    num_samples_per_class: 10

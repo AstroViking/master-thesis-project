@@ -8,13 +8,16 @@ from ..util.conv_delta_orthogonal_initialization import conv_delta_orthogonal_
 
 class ConvolutionalNet(_BaseNet):
 
-    def __init__(self, input_shape: Tuple[int, int, int], num_conv_channels: int, num_hidden_layers: int, num_classes: int, init_weight_mean: float=0, init_weight_var: float =1, init_bias_mean: float=0, init_bias_var: float=1, non_linearity = nn.Tanh(), kernel_size: int=3, padding_size: int=1):
+    def __init__(self, input_shape: Tuple[int, int, int], num_conv_channels: int, num_hidden_layers: int, num_classes: int, init_weight_mean: float=0, init_weight_var: float =1, init_bias_mean: float=0, init_bias_var: float=1, non_linearity = nn.Tanh()):
         super(ConvolutionalNet, self).__init__(input_shape, num_conv_channels, num_hidden_layers, num_classes, init_weight_mean, init_weight_var, init_bias_mean, init_bias_var, non_linearity)
 
         self.num_conv_channels = num_conv_channels
 
         num_in_channels = input_shape[0]
         input_output_size = input_shape[1]
+
+        kernel_size=3
+        padding_size=1
 
         input_layers: list[nn.Module] = []
         for stride in [1, 2, 2]:

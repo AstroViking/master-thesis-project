@@ -20,7 +20,7 @@ def model_accuracy_vs_epoch(title: str, metrics: pd.DataFrame) -> go.Figure:
     figure.add_trace(
         go.Scatter(
             x=epoch_indices, 
-            y=metrics.loc[:, "Train Accuracy"],
+            y=metrics.loc[:, ("Train", "Accuracy")],
             name="Train Accuracy",
         ),
         row=1, 
@@ -40,7 +40,7 @@ def model_accuracy_vs_epoch(title: str, metrics: pd.DataFrame) -> go.Figure:
     figure.add_trace(
         go.Scatter(
             x=epoch_indices, 
-            y=metrics.loc[:, "Test Accuracy"],
+            y=metrics.loc[:, ("Test", "Accuracy")],
             name="Test Accuracy"
         ),
         row=1, 

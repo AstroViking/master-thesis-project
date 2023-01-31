@@ -1,10 +1,12 @@
 import torch
-import numpy as np
 import pandas as pd
+
+from .sigint_handler_context import SigintHandlerContext
+
 
 def train_model(model: torch.nn.Module, train_dataset: torch.utils.data.Dataset, test_dataset: torch.utils.data.Dataset, num_epochs: int, batch_size: int, criterion, optimizer: torch.optim.Optimizer, device: str) -> pd.DataFrame:
 
-    results = pd.DataFrame(index=[e for e in range(num_epochs)], columns=["Train Loss", "Test"])    
+    results = pd.DataFrame(index=[e for e in range(num_epochs)], columns=pd.MultiIndex.from_product([["Train", "Test"], ["Loss", "Accuracy"]]))    
     
     model.to(device).train()
 
@@ -12,48 +14,54 @@ def train_model(model: torch.nn.Module, train_dataset: torch.utils.data.Dataset,
                                     batch_size=batch_size, 
                                     shuffle=True)
     
+    
+    n_total_steps = len(train_loader)
     test_accuracy = 0.0
 
-    n_total_steps = len(train_loader)
-    for epoch in range(num_epochs):
+    with SigintHandlerContext("Stopping training after end of current epoch...") as context:
 
-        n_train_correct = 0
-        n_train_samples = 0
+        for epoch in range(num_epochs):
 
-        for i, (inputs, labels) in enumerate(train_loader):  
-            inputs = inputs.to(device)
-            labels = labels.to(device)
-            
-            # Forward pass
-            outputs = model(inputs)
-            loss = criterion(outputs, labels)
+            n_train_correct = 0
+            n_train_samples = 0
 
-            _, predicted = torch.max(outputs.data, 1)
-            n_train_samples += labels.size(0)
-            n_train_correct += (predicted == labels).sum().item()
-            
-            # Backward and optimize
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step() 
+            for i, (inputs, labels) in enumerate(train_loader):  
+                inputs = inputs.to(device)
+                labels = labels.to(device)
+                
+                # Forward pass
+                outputs = model(inputs)
+                loss = criterion(outputs, labels)
 
-            train_accuracy = 100.0 * n_train_correct / n_train_samples
+                _, predicted = torch.max(outputs.data, 1)
+                n_train_samples += labels.size(0)
+                n_train_correct += (predicted == labels).sum().item()
+                
+                # Backward and optimize
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step() 
 
-            if (i+1) % 100 == 0:
-                print (f"Epoch [{epoch+1}/{num_epochs}], Step[{i+1}/{n_total_steps}], Train Loss: {loss.item():.4f}, Train Accuracy: {train_accuracy:.4f}, Test Accuracy: {test_accuracy:.4f}")
-            
-        test_accuracy = evaluate_model(model, test_dataset, batch_size, device)
-        model.train()
+                train_accuracy = 100.0 * n_train_correct / n_train_samples
 
-        results.loc[epoch, "Train Accuracy"] = train_accuracy
-        results.loc[epoch, "Test Accuracy"] = test_accuracy
+                if (i+1) % 100 == 0:
+                    print (f"Epoch [{epoch+1}/{num_epochs}], Step[{i+1}/{n_total_steps}], Train Loss: {loss.item():.4f}, Train Accuracy: {train_accuracy:.4f}, Test Accuracy: {test_accuracy:.4f}")
+                
+            test_accuracy = evaluate_model(model, test_dataset, batch_size, device)
+            model.train()
 
-        print (f"Epoch [{epoch+1}/{num_epochs}], Step[{i+1}/{n_total_steps}], Train Loss: {loss.item():.4f}, Train Accuracy: {train_accuracy:.4f}, Test Accuracy: {test_accuracy:.4f}")
-        
+            results.loc[epoch, ("Train", "Loss")] = loss.item()
+            results.loc[epoch, ("Train", "Accuracy")] = train_accuracy
+            results.loc[epoch, ("Test", "Accuracy")] = test_accuracy
+
+            print (f"Epoch [{epoch+1}/{num_epochs}], Step[{i+1}/{n_total_steps}], Train Loss: {loss.item():.4f}, Train Accuracy: {train_accuracy:.4f}, Test Accuracy: {test_accuracy:.4f}")
+
+            if context.sigint_received:
+                break
         
     model.eval()
 
-    return results
+    return results.dropna(how="all")
         
 
 
