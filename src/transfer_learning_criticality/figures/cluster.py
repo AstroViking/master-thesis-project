@@ -6,22 +6,27 @@ import pandas as pd
 from ._default import set_default_layout
 
 
-def davies_bouldin_index(title: str, activities: pd.DataFrame) -> go.Figure:
-
-    n_layers = len(activities.columns.unique(level="Layer"))
-    db_index = np.zeros(n_layers)
-
-    for l in range(n_layers):
-        db_index[l] = davies_bouldin_score(activities.loc[:, (l,)].fillna(0).to_numpy(), activities.loc[:, (l,)].index.get_level_values("Class"))
-
+def davies_bouldin_index(title: str, activities_dict: dict[str, pd.DataFrame]) -> go.Figure:
+    
     figure = go.Figure()
 
-    figure.add_trace(
-        go.Scatter(
-            x=activities.columns.unique(level="Layer"), 
-            y=db_index
+    for label, activities in activities_dict.items():
+
+        n_layers = len(activities.columns.unique(level="Layer"))
+        db_index = np.zeros(n_layers)
+
+        for l in range(n_layers):
+            db_index[l] = davies_bouldin_score(activities.loc[:, (l,)].fillna(0).to_numpy(), activities.loc[:, (l,)].index.get_level_values("Class"))
+
+        figure.add_trace(
+            go.Scatter(
+                x=activities.columns.unique(level="Layer"), 
+                y=db_index,
+                name=label
+            )
         )
-    )
+    
+
     figure.update_xaxes(
         title_text="$l$"
     )

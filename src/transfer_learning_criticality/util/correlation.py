@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from itertools import combinations_with_replacement
 from scipy import stats
+from tqdm import tqdm
 
 
 def calculate_average_correlations(activities: pd.DataFrame, num_samples_from_second_class:int=1, confidence_interval_percentile:float=0.99) -> Tuple[pd.DataFrame, pd.DataFrame]:
@@ -22,7 +23,11 @@ def calculate_average_correlations(activities: pd.DataFrame, num_samples_from_se
 
     combined_correlations = pd.DataFrame(index=["Same class", "Different class"], columns=correlations.columns.copy())
 
-    for l in layer_indices:
+    layer_iterator = tqdm(layer_indices)
+
+    for l in layer_iterator:
+
+        layer_iterator.set_description(f"Calculating correlations for layer {l}")
 
         same_class_correlations: np.ndarray = np.array([])
         different_class_correlations: np.ndarray = np.array([])

@@ -40,6 +40,7 @@ def train_model(model: torch.nn.Module, train_dataset: torch.utils.data.Dataset,
                 # Backward and optimize
                 optimizer.zero_grad()
                 loss.backward()
+                torch.nn.utils.clip_grad_norm_(model.parameters(), 5)
                 optimizer.step() 
 
                 train_accuracy = 100.0 * n_train_correct / n_train_samples

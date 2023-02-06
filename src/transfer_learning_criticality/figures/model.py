@@ -6,26 +6,44 @@ from numpy.typing import NDArray
 from ._default import set_default_layout
 
 
-def model_accuracy_vs_epoch(title: str, metrics: pd.DataFrame) -> go.Figure:
-
-    epoch_indices = metrics.index.unique()
+def model_accuracy_vs_epoch(title: str, metrics_dict: dict[str, pd.DataFrame]) -> go.Figure:
 
     figure = make_subplots(
         rows=2, 
         cols=2,
         vertical_spacing=0.1,
-        horizontal_spacing=0.1
+        horizontal_spacing=0.1,
+        subplot_titles=[
+            "Train accuracy",
+            "Test accuracy"
+        ]
     )
 
-    figure.add_trace(
-        go.Scatter(
-            x=epoch_indices, 
-            y=metrics.loc[:, ("Train", "Accuracy")],
-            name="Train Accuracy",
-        ),
-        row=1, 
-        col=1
-    )
+    for label, metrics in  metrics_dict.items():
+
+        epoch_indices = metrics.index.unique()
+
+        figure.add_trace(
+            go.Scatter(
+                x=epoch_indices, 
+                y=metrics.loc[:, ("Train", "Accuracy")],
+                name=label,
+            ),
+            row=1, 
+            col=1
+        )
+
+        figure.add_trace(
+            go.Scatter(
+                x=epoch_indices, 
+                y=metrics.loc[:, ("Test", "Accuracy")],
+                name=label
+            ),
+            row=1, 
+            col=2
+        )
+
+
     figure.update_xaxes(
         title_text="Epoch", 
         row=1, 
@@ -36,16 +54,7 @@ def model_accuracy_vs_epoch(title: str, metrics: pd.DataFrame) -> go.Figure:
         row=1, 
         col=1
     )
-
-    figure.add_trace(
-        go.Scatter(
-            x=epoch_indices, 
-            y=metrics.loc[:, ("Test", "Accuracy")],
-            name="Test Accuracy"
-        ),
-        row=1, 
-        col=2
-    )
+    
     figure.update_xaxes(
         title_text="Epoch", 
         row=1, 
