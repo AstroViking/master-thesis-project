@@ -22,9 +22,11 @@ class _BaseNet(nn.Module):
         self.init_bias_var = init_bias_var
         self.non_linearity = non_linearity
 
-        self.input_layer: nn.Module
-        self.hidden_layers: nn.ModuleList 
-        self.output_layer: nn.Module 
+        self.input_layer: nn.Module = self._create_input_layer()
+        self.hidden_layers: nn.ModuleList = self._create_hidden_layers()
+        self.output_layer: nn.Module = self._create_output_layer(num_classes)
+
+        self.apply(self._init_weights)
 
     def forward(self, x: torch.Tensor, return_hidden_layer_activities: bool=False) -> Union[torch.Tensor, Tuple[torch.Tensor, NDArray]]:
         
@@ -54,8 +56,29 @@ class _BaseNet(nn.Module):
 
         return out
 
+    def change_num_classes(self, num_classes: int):
+        self.output_layer = self._create_output_layer(num_classes)
+
+    def freeze_first_n_hidden_layers(self, n):
+        self.input_layer.requires_grad_(False)
+        self.hidden_layers[:n].requires_grad_(False)
+
+    @abstractmethod
+    def _init_weights(self, module: nn.Module):
+        raise NotImplementedError("Must override _init_weights")
+
+    @abstractmethod
+    def _create_input_layer(self):
+        raise NotImplementedError("Must override _create_input_layer")
+
+    @abstractmethod
+    def _create_hidden_layers(self):
+        raise NotImplementedError("Must override _create_hidden_layers")
+
+    @abstractmethod
+    def _create_output_layer(self, num_classes: int):
+        raise NotImplementedError("Must override _create_output_layer")
+
     @abstractmethod
     def _reshape_input(self, x: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError("Must override _reshape_input")
-
-    

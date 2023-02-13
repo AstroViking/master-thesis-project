@@ -1,28 +1,17 @@
 from pathlib import Path
 import yaml
 import click
-from schema import SchemaError
 
-from transfer_learning_criticality.schemas.config import config_schema
+from transfer_learning_criticality.types.config import Config
 from transfer_learning_criticality.util.runner import run_experiment
 
 @click.group()
 @click.option("-c", "--configpath", default=Path(__file__).parent.parent / "config.yaml", type=click.Path(exists=True),  help="Path to the config file.")
-@click.option("-t", "--train", default=False, help="Train model even if pretrained model exists.")
 @click.pass_context
-def cli(ctx, configpath, train):
-    with open(configpath, "r") as configfile:
-        config = yaml.safe_load(configfile)
-        try:
-            config_schema.validate(config)
-        except SchemaError as error:
-            print(f"Specified config is not valid. Validation error was {error}")
-            exit(0)
-
-
-        ctx.ensure_object(dict)
-        ctx.obj["config"] = config
-        ctx.obj["train"] = train
+def cli(ctx, configpath):
+    config = Config.from_yaml_file(configpath)
+    ctx.ensure_object(dict)
+    ctx.obj["config"] = config
 
 
 @cli.command()
@@ -33,7 +22,7 @@ def run_all(ctx, root_path):
     experiments = ctx.obj["config"]["experiments"]
 
     for config in experiments:
-        run_experiment(config, root_path, ~ctx.obj["train"])
+        run_experiment(config, root_path)
 
 @cli.command()
 @click.argument("experiment_index", default=0)
@@ -43,9 +32,9 @@ def run_all(ctx, root_path):
 def run(ctx, experiment_index, root_path, show_model_summary):
     
     ctx.ensure_object(dict)
-    config = ctx.obj["config"]["experiments"][experiment_index]
+    config = ctx.obj["config"]
 
-    run_experiment(config, root_path, ~ctx.obj["train"], show_model_summary)
+    run_experiment(config.experiments[experiment_index], root_path, show_model_summary)
     
 
 if __name__ == "__main__":
