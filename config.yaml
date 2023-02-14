@@ -16,9 +16,9 @@ experiments:
         dataset: "MNIST"
         num_epochs: 5
         batch_size: 100
-        learning_rate: 0.001
+        learning_rate: 0.01
     evaluation:
-      num_samples_per_class: 10
+      num_samples_per_class: 100
     
   - model: 
       type: "FeedForwardNet"

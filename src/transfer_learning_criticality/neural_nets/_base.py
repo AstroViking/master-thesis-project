@@ -62,6 +62,9 @@ class _BaseNet(nn.Module):
     def freeze_first_n_hidden_layers(self, n):
         self.input_layer.requires_grad_(False)
         self.hidden_layers[:n].requires_grad_(False)
+    
+    def reinit_last_n_hidden_layers(self, n):
+        self.hidden_layers[n:].apply(self._init_weights)
 
     @abstractmethod
     def _init_weights(self, module: nn.Module):

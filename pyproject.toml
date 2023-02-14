@@ -9,8 +9,8 @@ authors = [
     {name = "Marc Steiner", email = "msteiner@ini.uzh.ch"},
 ]
 dependencies = [
-    "pandas>=1.5.2",
-    "numpy>=1.24.1",
+    "pandas>=1.5",
+    "numpy>=1.22",
     "plotly>=5.11.0",
     "torch>=1.13.1",
     "torchvision>=0.14.1",
@@ -28,6 +28,7 @@ dependencies = [
     "types-click>=7.1.8",
     "tqdm>=4.64.1",
     "dataclass-wizard[yaml]>=0.22.2",
+    "numba==0.56",
 ]
 requires-python = ">=3.8"
 license = {text = "MIT"}

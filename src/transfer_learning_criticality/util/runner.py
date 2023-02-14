@@ -1,4 +1,5 @@
 from pprint import pprint
+from collections import Counter
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -121,11 +122,11 @@ def run_experiment(config: Experiment, root_path: Path, show_model_summary=False
             if correlations_path.exists():
                 correlations = pd.read_pickle(correlations_path)
             else:
-                _, correlations = calculate_average_correlations(hidden_layer_activities)
+                correlations = calculate_average_correlations(hidden_layer_activities)
                 correlations.to_pickle(correlations_path)
 
             initial_training_correlations[initialization_key] = correlations
-
+        
     fig.model_accuracy_vs_epoch("Model accuracy vs Epoch (Initial Training)", initial_training_metrics).write_image(plots_path / "initial_accuracy_vs_epoch.png", scale=3)
     fig.davies_bouldin_index(f"DB index of activity vectors accros {config.evaluation.num_samples_per_class} samples from {config.training.initial.dataset}", initial_training_activities).write_image((plots_path / f"initial_cluster_db_index-{num_samples_suffix}.png"), scale=3)
     fig.average_correlation_same_vs_different_class(f"Average correlation of input vectors accros {config.evaluation.num_samples_per_class} samples from {config.training.initial.dataset}", initial_training_correlations).write_image((plots_path / f"initial_average_correlation_same_vs_different_class-{num_samples_suffix}.png"), scale=3)
@@ -136,7 +137,7 @@ def run_experiment(config: Experiment, root_path: Path, show_model_summary=False
         transfer_training_activities = {}
         transfer_training_correlations = {}
 
-        for l in range(10):
+        for l in range(1, 5):
         #for l in range(config.model.parameters.num_hidden_layers):
             
             model = initialize_model(
@@ -153,7 +154,7 @@ def run_experiment(config: Experiment, root_path: Path, show_model_summary=False
             model.freeze_first_n_hidden_layers(model.num_hidden_layers - l)
 
             model.init_weight_var, model.init_bias_var = calculate_critical_initialization(config.model.parameters.non_linearity, l)
-            model.hidden_layers.apply(model._init_weights())
+            model.reinit_last_n_hidden_layers(l)
 
             model_key = f"{initialization_key}_transfer_{get_training_parameter_key(config.training.transfer)}_freeze_{l}"
 
@@ -182,10 +183,10 @@ def run_experiment(config: Experiment, root_path: Path, show_model_summary=False
 
                 correlations_path = results_path / f"{model_key}_correlations_{num_samples_suffix}.pickle"
                 
-                if  correlations_path.exists():
+                if correlations_path.exists():
                     correlations = pd.read_pickle(correlations_path)
                 else:
-                    _, correlations = calculate_average_correlations(hidden_layer_activities)
+                    correlations = calculate_average_correlations(hidden_layer_activities)
                     correlations.to_pickle(correlations_path)
 
                 transfer_training_correlations[f"{initialization_key}_{l}"] = correlations
@@ -341,18 +342,20 @@ def get_weight_bias_variances(model) -> tuple[np.ndarray, np.ndarray]:
     return weight_variances, bias_variances
 
 
-def sample_hidden_layer_activities(model: BaseNet, test_dataset, num_samples_per_class: int, num_hidden_layers: int, device: str) -> pd.DataFrame:
+def sample_hidden_layer_activities(model: BaseNet, dataset, num_samples_per_class: int, num_hidden_layers: int, device: str) -> pd.DataFrame:
+    classes = Counter(dataset.targets.numpy())
+    classes = Counter({k: c for k, c in classes.items() if c > 0})
 
-    input_classes = range(len(test_dataset.classes))
+    hidden_layer_activities = pd.DataFrame(index=pd.MultiIndex.from_product([[c for c in classes], [s for s in range(num_samples_per_class)]], names=["Class", "Sample"]), columns=pd.MultiIndex.from_product([[l for l in range(num_hidden_layers)], [n for n in range(model.hidden_layer_width)]], names=["Layer", "Neuron"]))
 
-    hidden_layer_activities = pd.DataFrame(index=pd.MultiIndex.from_product([[c for c in input_classes], [s for s in range(num_samples_per_class)]], names=["Class", "Sample"]), columns=pd.MultiIndex.from_product([[l for l in range(num_hidden_layers)], [n for n in range(model.hidden_layer_width)]], names=["Layer", "Neuron"]))
+    input_class_iterator = tqdm(sorted(classes.keys()))
 
-    for c in tqdm(input_classes):
-        class_indices = [idx for idx, target in enumerate(test_dataset.targets) if target == c]
-        class_subset = torch.utils.data.Subset(test_dataset, class_indices)
+    for c in input_class_iterator:
 
-        if len(class_subset) < 1:
-            continue
+        input_class_iterator.set_description(f"Sampling hidden activities for class {c}")
+
+        class_indices = [idx for idx, target in enumerate(dataset.targets) if target == c]
+        class_subset = torch.utils.data.Subset(dataset, class_indices)
 
         random_class_indices = np.random.choice(len(class_subset), size=num_samples_per_class, replace=False)
 
