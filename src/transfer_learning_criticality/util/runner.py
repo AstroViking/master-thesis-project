@@ -346,7 +346,7 @@ def sample_hidden_layer_activities(model: BaseNet, dataset, num_samples_per_clas
     classes = Counter(dataset.targets.numpy())
     classes = Counter({k: c for k, c in classes.items() if c > 0})
 
-    hidden_layer_activities = pd.DataFrame(index=pd.MultiIndex.from_product([[c for c in classes], [s for s in range(num_samples_per_class)]], names=["Class", "Sample"]), columns=pd.MultiIndex.from_product([[l for l in range(num_hidden_layers)], [n for n in range(model.hidden_layer_width)]], names=["Layer", "Neuron"]))
+    activities = pd.DataFrame(index=pd.MultiIndex.from_product([[c for c in classes], [s for s in range(num_samples_per_class)]], names=["Class", "Sample"]), columns=pd.MultiIndex.from_product([[l for l in range(num_hidden_layers)], [n for n in range(model.hidden_layer_width)]], names=["Layer", "Neuron"]))
 
     input_class_iterator = tqdm(sorted(classes.keys()))
 
@@ -357,11 +357,11 @@ def sample_hidden_layer_activities(model: BaseNet, dataset, num_samples_per_clas
         class_indices = [idx for idx, target in enumerate(dataset.targets) if target == c]
         class_subset = torch.utils.data.Subset(dataset, class_indices)
 
-        random_class_indices = np.random.choice(len(class_subset), size=num_samples_per_class, replace=False)
+        sampler = torch.utils.data.DataLoader(dataset=class_subset, batch_size=num_samples_per_class, shuffle=True)
 
-        for i in range(num_samples_per_class):
-            random_sample = class_subset[random_class_indices[i]][0]
-            output_activity, hidden_layer_activity =  model.forward(random_sample.to(device), True)
-            hidden_layer_activities.loc[(c, i), :] = hidden_layer_activity.flatten()
+        samples, _ = next(iter(sampler))
+
+        _, hidden_layer_activities =  model.forward(samples.to(device), True)
+        activities.loc[(c, slice(None))] = hidden_layer_activities.view(hidden_layer_activities.size(0), -1).cpu().numpy()
     
-    return hidden_layer_activities
+    return activities

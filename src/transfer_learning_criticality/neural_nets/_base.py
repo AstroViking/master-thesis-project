@@ -1,9 +1,7 @@
 from abc import abstractmethod
-import numpy as np
 import torch
 import torch.nn as nn
 from typing import Union, Tuple
-from numpy.typing import NDArray
 from ..util.conv_delta_orthogonal_initialization import conv_delta_orthogonal_
 
 
@@ -28,7 +26,7 @@ class _BaseNet(nn.Module):
 
         self.apply(self._init_weights)
 
-    def forward(self, x: torch.Tensor, return_hidden_layer_activities: bool=False) -> Union[torch.Tensor, Tuple[torch.Tensor, NDArray]]:
+    def forward(self, x: torch.Tensor, return_hidden_layer_activities: bool=False) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
         
         if len(x.shape) != 4:
             x = x.reshape((1, *x.shape))
@@ -36,8 +34,8 @@ class _BaseNet(nn.Module):
         out = self.input_layer(self._reshape_input(x))
 
         if return_hidden_layer_activities:
-            hidden_layer_activities = np.zeros((self.num_hidden_layers, self.hidden_layer_width))
-            hidden_layer_activities[0, :] = out.view(out.size(0), -1).cpu().numpy()
+            hidden_layer_activities = torch.zeros((x.shape[0], self.num_hidden_layers, self.hidden_layer_width), device=x.device)
+            hidden_layer_activities[:, 0, :] = out.view(out.size(0), -1)
 
         out = self.non_linearity(out)
 
@@ -45,7 +43,7 @@ class _BaseNet(nn.Module):
             out = layer(out)
 
             if return_hidden_layer_activities:
-                hidden_layer_activities[i + 1, :] = out.view(out.size(0), -1).cpu().numpy()
+                hidden_layer_activities[:, i + 1, :] = out.view(out.size(0), -1)
          
             out = self.non_linearity(out)
 
