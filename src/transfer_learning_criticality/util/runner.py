@@ -9,6 +9,7 @@ import torchvision.transforms as transforms
 from torchinfo import summary as summarize_model
 import torch_optimizer as optim
 from tqdm import tqdm 
+import multiprocessing as mp
 
 from ..types.config import Experiment, Model, TrainParameters
 from ..neural_nets import BaseNet, FeedForwardNet, ConvolutionalNet
@@ -28,7 +29,7 @@ def run_experiment(config: Experiment, root_path: Path, show_model_summary=False
     random_seed = 1
     torch.manual_seed(random_seed)
     np.random.seed(random_seed)
-    device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
+    num_of_available_gpus = torch.cuda.device_count()
 
     data_path = Path(root_path).parent.parent / "data"
     output_path = Path(root_path).parent.parent / "output" / get_model_parameter_key(config.model) / f"{config.training.initial.dataset}->{config.training.transfer.dataset}"
@@ -42,7 +43,6 @@ def run_experiment(config: Experiment, root_path: Path, show_model_summary=False
     print(f"Output path is set to: {output_path}\n")
 
     data_path.mkdir(parents=True, exist_ok=True)
-    output_path.mkdir(parents=True, exist_ok=True)
     models_path.mkdir(parents=True, exist_ok=True)
     results_path.mkdir(parents=True, exist_ok=True)
     plots_path.mkdir(parents=True, exist_ok=True)
@@ -70,131 +70,78 @@ def run_experiment(config: Experiment, root_path: Path, show_model_summary=False
         },
     }
 
-    initial_training_metrics = {}
-    initial_training_activities = {}
-    initial_training_correlations = {}
-
     initial_train_dataset, initial_test_dataset = load_datasets(config.training.initial.dataset, data_path)
     transfer_train_dataset, transfer_test_dataset = load_datasets(config.training.transfer.dataset, data_path)
 
-    for initialization_key, initialization in initializations.items():
+    pool = mp.Pool(len(initializations))
 
-        model = initialize_model(
+    results = pool.starmap(
+        evaluate_intialization,
+        [(
+            initialization_key, 
+            initialization, 
+            models_path, 
+            results_path,
+            plots_path, 
             config.model,
-            initial_train_dataset[0][0].shape,
-            len(initial_train_dataset.classes), 
-            initialization
-        )
-
-        if show_model_summary:
-            summarize_model(model, (1, *initial_train_dataset[0][0].shape))
-
-
-        model_key = f"{initialization_key}_initial_{get_training_parameter_key(config.training.initial)}"
-
-        initial_training_metrics[initialization_key] = train_or_load_model_weights(
-            model,
-            models_path / model_key, 
             config.training.initial,
             initial_train_dataset,
             initial_test_dataset,
-            device
-        )
+            f"cuda:{idx % num_of_available_gpus}" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu",
+            config.evaluation.num_samples_per_class
 
-        model = model.to(device).eval()
+        ) 
+        for idx, (initialization_key, initialization) in enumerate(initializations.items())]
+    )
 
-        with torch.no_grad():
-        
-            fig.model_weight_bias_variance(f"Weight and bias variance across layers for network trained with {config.training.initial.dataset} dataset", *get_weight_bias_variances(model)).write_image(plots_path / f"{model_key}_weight_bias_variance.png", scale=3)
+    initial_training_metrics = {key:metrics for (key,metrics,_,_) in results}
+    initial_training_activities = {key:activities for (key,_,activities,_) in results}
+    initial_training_correlations = {key:correlations for (key,_,_,correlations) in results}
 
-            hidden_layer_activities_path = results_path / f"{model_key}_hidden_layer_activities_{num_samples_suffix}.pickle"
-            
-            if  hidden_layer_activities_path.exists():
-                hidden_layer_activities = pd.read_pickle(hidden_layer_activities_path)
-            else:
-                hidden_layer_activities = sample_hidden_layer_activities(model, initial_train_dataset, config.evaluation.num_samples_per_class, config.model.parameters.num_hidden_layers, device)
-                hidden_layer_activities.to_pickle(hidden_layer_activities_path)
-            
-            initial_training_activities[initialization_key] = hidden_layer_activities
-
-            correlations_path = results_path / f"{model_key}_correlations_{num_samples_suffix}.pickle"
-            
-            if correlations_path.exists():
-                correlations = pd.read_pickle(correlations_path)
-            else:
-                correlations = calculate_average_correlations(hidden_layer_activities)
-                correlations.to_pickle(correlations_path)
-
-            initial_training_correlations[initialization_key] = correlations
+    pool.close()
         
     fig.model_accuracy_vs_epoch("Model accuracy vs Epoch (Initial Training)", initial_training_metrics).write_image(plots_path / "initial_accuracy_vs_epoch.png", scale=3)
     fig.davies_bouldin_index(f"DB index of activity vectors accros {config.evaluation.num_samples_per_class} samples from {config.training.initial.dataset}", initial_training_activities).write_image((plots_path / f"initial_cluster_db_index-{num_samples_suffix}.png"), scale=3)
     fig.average_correlation_same_vs_different_class(f"Average correlation of input vectors accros {config.evaluation.num_samples_per_class} samples from {config.training.initial.dataset}", initial_training_correlations).write_image((plots_path / f"initial_average_correlation_same_vs_different_class-{num_samples_suffix}.png"), scale=3)
 
-    for initialization_key in initializations:
 
-        transfer_training_metrics = {}
-        transfer_training_activities = {}
-        transfer_training_correlations = {}
+    for initialization_key, initialization in initializations.items():
 
-        for l in range(1, 5):
-        #for l in range(config.model.parameters.num_hidden_layers):
-            
-            model = initialize_model(
+        max_layers_to_retrain = 8
+
+        pool = mp.Pool(max_layers_to_retrain)
+
+        results = pool.starmap(
+            evaluate_layer_freezing,
+            [(
+                initialization_key, 
+                initialization, 
+                models_path, 
+                results_path,
+                plots_path, 
                 config.model,
-                initial_train_dataset[0][0].shape,
-                len(initial_train_dataset.classes), 
-                initialization
-            )
-            
-            model.load_state_dict(torch.load(models_path / f"{initialization_key}_initial_{get_training_parameter_key(config.training.initial)}.zip"))
-
-            model.change_num_classes(len(transfer_train_dataset.classes))
-
-            model.freeze_first_n_hidden_layers(model.num_hidden_layers - l)
-
-            model.init_weight_var, model.init_bias_var = calculate_critical_initialization(config.model.parameters.non_linearity, l)
-            model.reinit_last_n_hidden_layers(l)
-
-            model_key = f"{initialization_key}_transfer_{get_training_parameter_key(config.training.transfer)}_freeze_{l}"
-
-            transfer_training_metrics[f"{initialization_key}_{l}"] = train_or_load_model_weights(
-                model,
-                models_path / model_key, 
-                config.training.transfer,
+                config.training.initial,
+                initial_train_dataset,
                 transfer_train_dataset,
                 transfer_test_dataset,
-                device
-            )
+                f"cuda:{idx % num_of_available_gpus}" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu",
+                layers_to_train,
+                config.evaluation.num_samples_per_class
+            ) 
+            for idx, layers_to_train in enumerate(range(1, max_layers_to_retrain+1))]
+            ##for layers_to_train in range(config.model.parameters.num_hidden_layers)]
+        )
 
-            model = model.to(device).eval()
+        transfer_training_metrics = {key:metrics for (key,metrics,_,_) in results}
+        transfer_training_activities = {key:activities for (key,_,activities,_) in results}
+        transfer_training_correlations = {key:correlations for (key,_,_,correlations) in results}
 
-            with torch.no_grad():
-            
-                hidden_layer_activities_path = results_path / f"{model_key}_hidden_layer_activities_{num_samples_suffix}.pickle"
-                
-                if  hidden_layer_activities_path.exists():
-                    hidden_layer_activities = pd.read_pickle(hidden_layer_activities_path)
-                else:
-                    hidden_layer_activities = sample_hidden_layer_activities(model, transfer_train_dataset, config.evaluation.num_samples_per_class, config.model.parameters.num_hidden_layers, device)
-                    hidden_layer_activities.to_pickle(hidden_layer_activities_path)
-                
-                transfer_training_activities[f"{initialization_key}_{l}"] = hidden_layer_activities
-
-                correlations_path = results_path / f"{model_key}_correlations_{num_samples_suffix}.pickle"
-                
-                if correlations_path.exists():
-                    correlations = pd.read_pickle(correlations_path)
-                else:
-                    correlations = calculate_average_correlations(hidden_layer_activities)
-                    correlations.to_pickle(correlations_path)
-
-                transfer_training_correlations[f"{initialization_key}_{l}"] = correlations
-    
         fig.model_accuracy_vs_epoch(f"Model accuracy vs Epoch (Transfer Learning) with {initialization_key} initialization", transfer_training_metrics).write_image(plots_path / f"{initialization_key}_transfer_accuracy_vs_epoch.png", scale=3)
         fig.davies_bouldin_index(f"DB index of activity vectors accros {config.evaluation.num_samples_per_class} samples from {config.training.transfer.dataset}", transfer_training_activities).write_image((plots_path / f"{initialization_key}_transfer_cluster_db_index-{num_samples_suffix}.png"), scale=3)
         fig.average_correlation_same_vs_different_class(f"Average correlation of input vectors accros {config.evaluation.num_samples_per_class} samples from {config.training.transfer.dataset}", transfer_training_correlations).write_image((plots_path / f"{initialization_key}_transfer_average_correlation_same_vs_different_class-{num_samples_suffix}.png"), scale=3)
 
+        pool.close()
+            
     print("Experiment successfully finished!")
     print(f"Output path was set to: {output_path}\n")
 
@@ -320,6 +267,106 @@ def train_or_load_model_weights(model: BaseNet, path: Path, config: TrainParamet
     return metrics
 
 
+def evaluate_intialization(initialization_key, initialization, models_path: Path, results_path: Path, plots_path: Path, model_config: Model, training_config: TrainParameters, train_dataset, test_dataset: torch.utils.data.Dataset, device, num_samples_per_class):
+
+    model = initialize_model(
+        model_config,
+        train_dataset[0][0].shape,
+        len(train_dataset.classes), 
+        initialization
+    )
+
+    model_key = f"{initialization_key}_initial_{get_training_parameter_key(training_config)}"
+
+    metrics = train_or_load_model_weights(
+        model,
+        models_path / model_key, 
+        training_config,
+        train_dataset,
+        test_dataset,
+        device
+    )
+
+    model = model.to(device).eval()
+
+    with torch.no_grad():
+
+        num_samples_suffix = f"{num_samples_per_class}-samples"
+    
+        fig.model_weight_bias_variance(f"Weight and bias variance across layers for network trained with {training_config} dataset", *get_weight_bias_variances(model)).write_image(plots_path / f"{model_key}_weight_bias_variance.png", scale=3)
+
+        hidden_layer_activities_path = results_path / f"{model_key}_hidden_layer_activities_{num_samples_suffix}.pickle"
+        
+        if  hidden_layer_activities_path.exists():
+            hidden_layer_activities = pd.read_pickle(hidden_layer_activities_path)
+        else:
+            hidden_layer_activities = sample_hidden_layer_activities(model, train_dataset, num_samples_per_class, model_config.parameters.num_hidden_layers, device)
+            hidden_layer_activities.to_pickle(hidden_layer_activities_path)
+        
+        correlations_path = results_path / f"{model_key}_correlations_{num_samples_suffix}.pickle"
+        
+        if correlations_path.exists():
+            correlations = pd.read_pickle(correlations_path)
+        else:
+            correlations = calculate_average_correlations(hidden_layer_activities)
+            correlations.to_pickle(correlations_path)
+    
+    return initialization_key, metrics, hidden_layer_activities, correlations
+
+
+def evaluate_layer_freezing(initialization_key: str, initialization: dict, models_path: Path, results_path: Path, plots_path: Path, model_config: Model, training_config: TrainParameters, initial_dataset, train_dataset, test_dataset: torch.utils.data.Dataset, device: str, num_layers_to_train: int, num_samples_per_class: int):
+    
+    model = initialize_model(
+        model_config,
+        initial_dataset[0][0].shape,
+        len(initial_dataset.classes), 
+        initialization
+    )
+    
+    model.load_state_dict(torch.load(models_path / f"{initialization_key}_initial_{get_training_parameter_key(training_config)}.zip"))
+    model.change_num_classes(len(train_dataset.classes))
+    model.freeze_first_n_hidden_layers(model.num_hidden_layers - num_layers_to_train)
+
+    model.init_weight_var, model.init_bias_var = calculate_critical_initialization(model_config.parameters.non_linearity, num_layers_to_train)
+    model.reinit_last_n_hidden_layers(num_layers_to_train)
+
+    model_key = f"{initialization_key}_transfer_{get_training_parameter_key(training_config)}_freeze_{num_layers_to_train}"
+
+    metrics = train_or_load_model_weights(
+        model,
+        models_path / model_key, 
+        training_config,
+        train_dataset,
+        test_dataset,
+        device
+    )
+
+    model = model.to(device).eval()
+
+    num_samples_suffix = f"{num_samples_per_class}-samples"
+
+    with torch.no_grad():
+    
+        hidden_layer_activities_path = results_path / f"{model_key}_hidden_layer_activities_{num_samples_suffix}.pickle"
+        
+        if  hidden_layer_activities_path.exists():
+            hidden_layer_activities = pd.read_pickle(hidden_layer_activities_path)
+        else:
+            hidden_layer_activities = sample_hidden_layer_activities(model, train_dataset, num_samples_per_class, model_config.parameters.num_hidden_layers, device)
+            hidden_layer_activities.to_pickle(hidden_layer_activities_path)
+        
+
+        correlations_path = results_path / f"{model_key}_correlations_{num_samples_suffix}.pickle"
+        
+        if correlations_path.exists():
+            correlations = pd.read_pickle(correlations_path)
+        else:
+            correlations = calculate_average_correlations(hidden_layer_activities)
+            correlations.to_pickle(correlations_path)
+    
+    return f"{num_layers_to_train} retrained layers", metrics, hidden_layer_activities, correlations
+
+
 def get_weight_bias_variances(model) -> tuple[np.ndarray, np.ndarray]:
 
     weight_variances = np.array([])
@@ -358,7 +405,6 @@ def sample_hidden_layer_activities(model: BaseNet, dataset, num_samples_per_clas
         class_subset = torch.utils.data.Subset(dataset, class_indices)
 
         sampler = torch.utils.data.DataLoader(dataset=class_subset, batch_size=num_samples_per_class, shuffle=True)
-
         samples, _ = next(iter(sampler))
 
         _, hidden_layer_activities =  model.forward(samples.to(device), True)
