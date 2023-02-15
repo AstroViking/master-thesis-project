@@ -1,3 +1,4 @@
+from typing import Dict
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pandas as pd
@@ -5,7 +6,7 @@ import pandas as pd
 from ._default import set_default_layout
 
 
-def average_correlation_same_vs_different_class(title: str, correlations_dict: dict[str, pd.DataFrame]) -> go.Figure:
+def average_correlation_same_vs_different_class(title: str, correlations_dict: Dict[str, pd.DataFrame]) -> go.Figure:
 
     figure = make_subplots(
         rows=1, 

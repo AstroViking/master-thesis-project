@@ -1,3 +1,4 @@
+from typing import List
 from dataclass_wizard import YAMLWizard
 from dataclasses import dataclass
 
@@ -36,4 +37,4 @@ class Experiment:
 
 @dataclass
 class Config(YAMLWizard):
-    experiments: list[Experiment]
+    experiments: List[Experiment]

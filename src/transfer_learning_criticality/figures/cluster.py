@@ -1,3 +1,4 @@
+from typing import Dict
 import plotly.graph_objects as go
 from sklearn.metrics import davies_bouldin_score
 import numpy as np
@@ -6,7 +7,7 @@ import pandas as pd
 from ._default import set_default_layout
 
 
-def davies_bouldin_index(title: str, activities_dict: dict[str, pd.DataFrame]) -> go.Figure:
+def davies_bouldin_index(title: str, activities_dict: Dict[str, pd.DataFrame]) -> go.Figure:
     
     figure = go.Figure()
 

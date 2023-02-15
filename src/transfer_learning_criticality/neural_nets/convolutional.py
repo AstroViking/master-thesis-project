@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
-from typing import Tuple
+from typing import Tuple, List
 from ._base import _BaseNet
 from ..util.conv_delta_orthogonal_initialization import conv_delta_orthogonal_
 
@@ -25,7 +25,7 @@ class ConvolutionalNet(_BaseNet):
         num_in_channels = self.input_shape[0]
         input_output_size = self.input_shape[1]
 
-        input_layers: list[nn.Module] = []
+        input_layers: List[nn.Module] = []
         for stride in [1, 2, 2]:
             input_layers.append(nn.Conv2d(num_in_channels, self.num_conv_channels, kernel_size=self.kernel_size, padding=self.padding_size, stride=stride))
             input_layers.append(self.non_linearity)

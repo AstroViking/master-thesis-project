@@ -1,3 +1,4 @@
+from typing import Dict
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pandas as pd
@@ -6,7 +7,7 @@ from numpy.typing import NDArray
 from ._default import set_default_layout
 
 
-def model_accuracy_vs_epoch(title: str, metrics_dict: dict[str, pd.DataFrame]) -> go.Figure:
+def model_accuracy_vs_epoch(title: str, metrics_dict: Dict[str, pd.DataFrame]) -> go.Figure:
 
     figure = make_subplots(
         rows=2, 

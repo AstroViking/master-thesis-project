@@ -1,3 +1,4 @@
+from typing import Tuple, Dict
 from pprint import pprint
 from collections import Counter
 from pathlib import Path
@@ -194,7 +195,7 @@ def calculate_critical_initialization(non_linearity: str, depth):
     return mean_field_calculator.sw_sb(qstar, 1)
 
 
-def initialize_model(config: Model, input_shape: tuple[int, int, int], num_classes: int, initialization: dict[str, float]) -> BaseNet:
+def initialize_model(config: Model, input_shape: Tuple[int, int, int], num_classes: int, initialization: Dict[str, float]) -> BaseNet:
     
     non_linearity = torch.nn.Tanh() if config.parameters.non_linearity == "tanh" else torch.nn.SELU()
 
@@ -367,7 +368,7 @@ def evaluate_layer_freezing(initialization_key: str, initialization: dict, model
     return f"{num_layers_to_train} retrained layers", metrics, hidden_layer_activities, correlations
 
 
-def get_weight_bias_variances(model) -> tuple[np.ndarray, np.ndarray]:
+def get_weight_bias_variances(model) -> Tuple[np.ndarray, np.ndarray]:
 
     weight_variances = np.array([])
     bias_variances = np.array([])
