@@ -9,11 +9,11 @@ from ..util.conv_delta_orthogonal_initialization import conv_delta_orthogonal_
 class ConvolutionalNet(_BaseNet):
 
     def __init__(self, input_shape: Tuple[int, int, int], num_conv_channels: int, num_hidden_layers: int, num_classes: int, init_weight_mean: float=0, init_weight_var: float =1, init_bias_mean: float=0, init_bias_var: float=1, non_linearity = nn.Tanh()):
-        super(ConvolutionalNet, self).__init__(input_shape, num_conv_channels, num_hidden_layers, num_classes, init_weight_mean, init_weight_var, init_bias_mean, init_bias_var, non_linearity)
-
         self.num_conv_channels = num_conv_channels
         self.kernel_size = 3
         self.padding_size = 1
+
+        super(ConvolutionalNet, self).__init__(input_shape, num_conv_channels, num_hidden_layers, num_classes, init_weight_mean, init_weight_var, init_bias_mean, init_bias_var, non_linearity)
 
     def _init_weights(self, module: nn.Module):
         if isinstance(module, nn.Conv2d):
