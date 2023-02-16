@@ -14,7 +14,7 @@ experiments:
         learning_rate: 0.001
       transfer:
         dataset: "MNIST"
-        num_epochs: 20
+        num_epochs: 40
         batch_size: 100
         learning_rate: 0.001
     evaluation:
@@ -33,12 +33,12 @@ experiments:
         batch_size: 100
         learning_rate: 0.001
       transfer:
-        dataset: "FashionMNISTT"
-        num_epochs: 5
-        batch_size: 100
+        dataset: "EMNIST-letters"
+        num_epochs: 40
+        batch_size: 400
         learning_rate: 0.001
     evaluation:
-      num_samples_per_class: 10
+      num_samples_per_class: 100
 
   - model: 
       type: "FeedForwardNet"
@@ -54,31 +54,31 @@ experiments:
         learning_rate: 0.001
       transfer:
         dataset: "MNIST"
-        num_epochs: 5
+        num_epochs: 20
         batch_size: 100
         learning_rate: 0.001
     evaluation:
-      num_samples_per_class: 10
+      num_samples_per_class: 100
 
   - model: 
       type: "ConvolutionalNet"
       parameters:
         hidden_layer_width: 32
         num_hidden_layers: 20
-        non_linearity: "selu"
+        non_linearity: "tanh"
     training:
       initial:
         dataset: "MNIST"
-        num_epochs: 5
+        num_epochs: 20
         batch_size: 100
         learning_rate: 0.001
       transfer:
         dataset: "EMNIST-letters"
-        num_epochs: 5
-        batch_size: 100
+        num_epochs: 40
+        batch_size: 400
         learning_rate: 0.001
     evaluation:
-      num_samples_per_class: 10
+      num_samples_per_class: 100
 
   
   - model: 
@@ -94,9 +94,9 @@ experiments:
         batch_size: 100
         learning_rate: 0.001
       transfer:
-        dataset: "MNIST"
-        num_epochs: 5
+        dataset: "FashionMNIST"
+        num_epochs: 20
         batch_size: 100
         learning_rate: 0.001
     evaluation:
-      num_samples_per_class: 10
+      num_samples_per_class: 100
