@@ -19,10 +19,10 @@ def cli(ctx, configpath):
 @click.option("-p", "--root-path", "root_path", default=__file__, help="Root path for dataset and output files.")
 def run_all(ctx, root_path):
     ctx.ensure_object(dict)
-    experiments = ctx.obj["config"]["experiments"]
+    config = ctx.obj["config"]
 
-    for config in experiments:
-        run_experiment(config, root_path)
+    for experiment in config.experiments:
+        run_experiment(experiment, root_path)
 
 @cli.command()
 @click.argument("experiment_index", default=0)
