@@ -23,7 +23,8 @@ def davies_bouldin_index(title: str, activities_dict: Dict[str, pd.DataFrame]) -
             go.Scatter(
                 x=activities.columns.unique(level="Layer"), 
                 y=db_index,
-                name=label
+                name=label,
+                mode="lines+markers"
             )
         )
     

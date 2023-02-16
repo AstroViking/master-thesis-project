@@ -6,7 +6,7 @@ import pandas as pd
 from ._default import set_default_layout
 
 
-def average_correlation_same_vs_different_class(title: str, correlations_dict: Dict[str, pd.DataFrame]) -> go.Figure:
+def average_correlation_same_vs_different_class(title: str, correlations_dict: Dict[str, pd.DataFrame], show_error_bars: bool=True) -> go.Figure:
 
     figure = make_subplots(
         rows=1, 
@@ -32,8 +32,9 @@ def average_correlation_same_vs_different_class(title: str, correlations_dict: D
                     type='data',
                     array=correlations.loc["Same class", (slice(None), "Error")],
                     visible=True
-                ),
-                mode="markers"
+                ) if show_error_bars else None,
+                mode="lines+markers",
+                legendgroup="same"
             ),
             row=1, 
             col=1
@@ -48,8 +49,9 @@ def average_correlation_same_vs_different_class(title: str, correlations_dict: D
                     type='data',
                     array=correlations.loc["Different class", (slice(None), "Error")],
                     visible=True
-                ),
-                mode="markers"
+                ) if show_error_bars else None,
+                mode="lines+markers",
+                legendgroup="different"
             ),
             row=1, 
             col=2
@@ -89,68 +91,8 @@ def average_correlation_same_vs_different_class(title: str, correlations_dict: D
         autosize=True,
         title_text=title,
         width=1600,
-        height=900
-    )
-
-    return set_default_layout(figure)
-
-
-def average_correlation_between_classes(title: str, correlations: pd.DataFrame, n_cols: int = 2) -> go.Figure:
-
-    n_rows = int(len(correlations.index)/n_cols) + 1
-
-    figure = make_subplots(
-        rows=n_rows, 
-        cols=n_cols,
-        horizontal_spacing=0.5/n_cols,
-        vertical_spacing=0.5/n_rows
-    )
-
-    current_row = 1
-    current_col = 1
-
-    for idx in correlations.index:
-
-        figure.add_trace(
-            go.Scatter(
-                x=correlations.columns.unique(level="Layer"), 
-                y=correlations.loc[idx, (slice(None), "Correlation")].to_numpy(), 
-                name=f"Class {idx[0]} vs Class {idx[1]}",
-                error_y=dict(
-                    type='data',
-                    array=correlations.loc[idx, (slice(None), "Error")].to_numpy(),
-                    visible=True
-                ),
-                mode="markers"
-            ),
-            row=current_row, 
-            col=current_col
-        )
-        figure.update_xaxes(
-            title_text="$l$", 
-            row=current_row, 
-            col=current_col,
-            automargin=True
-        )
-        figure.update_yaxes(
-            range=[-1.2, 1.2],
-            title_text="$\hat{c}(x1, x2)$", 
-            row=current_row, 
-            col=current_col,
-            automargin=True
-        )
-
-        if current_col + 1 <= n_cols:
-            current_col += 1
-        else:
-            current_col = 1
-            current_row += 1
-
-    figure.update_layout(
-        autosize=True,
-        title_text=title,
-        width=1500 * n_cols/n_rows + 600,
-        height=1500
+        height=900,
+        legend_tracegroupgap = 20
     )
 
     return set_default_layout(figure)

@@ -108,7 +108,7 @@ def run_experiment(config: Experiment, root_path: Path, show_model_summary=False
 
     for initialization_key, initialization in initializations.items():
 
-        max_layers_to_retrain = 8
+        max_layers_to_retrain = 10
 
         pool = mp.Pool(max_layers_to_retrain)
 
@@ -139,7 +139,7 @@ def run_experiment(config: Experiment, root_path: Path, show_model_summary=False
 
         fig.model_accuracy_vs_epoch(f"Model accuracy vs Epoch (Transfer Learning) with {initialization_key} initialization", transfer_training_metrics).write_image(plots_path / f"{initialization_key}_transfer_accuracy_vs_epoch.png", scale=3)
         fig.davies_bouldin_index(f"DB index of activity vectors accros {config.evaluation.num_samples_per_class} samples from {config.training.transfer.dataset}", transfer_training_activities).write_image((plots_path / f"{initialization_key}_transfer_cluster_db_index-{num_samples_suffix}.png"), scale=3)
-        fig.average_correlation_same_vs_different_class(f"Average correlation of input vectors accros {config.evaluation.num_samples_per_class} samples from {config.training.transfer.dataset}", transfer_training_correlations).write_image((plots_path / f"{initialization_key}_transfer_average_correlation_same_vs_different_class-{num_samples_suffix}.png"), scale=3)
+        fig.average_correlation_same_vs_different_class(f"Average correlation of input vectors accros {config.evaluation.num_samples_per_class} samples from {config.training.transfer.dataset}", transfer_training_correlations, False).write_image((plots_path / f"{initialization_key}_transfer_average_correlation_same_vs_different_class-{num_samples_suffix}.png"), scale=3)
 
         pool.close()
             

@@ -29,6 +29,8 @@ def model_accuracy_vs_epoch(title: str, metrics_dict: Dict[str, pd.DataFrame]) -
                 x=epoch_indices, 
                 y=metrics.loc[:, ("Train", "Accuracy")],
                 name=label,
+                mode="lines+markers",
+                legendgroup="train"
             ),
             row=1, 
             col=1
@@ -38,7 +40,9 @@ def model_accuracy_vs_epoch(title: str, metrics_dict: Dict[str, pd.DataFrame]) -
             go.Scatter(
                 x=epoch_indices, 
                 y=metrics.loc[:, ("Test", "Accuracy")],
-                name=label
+                name=label,
+                mode="lines+markers",
+                legendgroup="test"
             ),
             row=1, 
             col=2
@@ -70,7 +74,8 @@ def model_accuracy_vs_epoch(title: str, metrics_dict: Dict[str, pd.DataFrame]) -
     figure.update_layout(
         height=900, 
         width=1600, 
-        title_text=title
+        title_text=title,
+        legend_tracegroupgap = 20
     )
 
     return set_default_layout(figure)
