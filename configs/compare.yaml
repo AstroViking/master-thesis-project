@@ -1,0 +1,21 @@
+# @package _global_
+
+defaults:
+  - _self_
+  - data: mnist
+  - logger: null
+  - paths: default
+  - extras: default
+  - hydra: default
+  - comparator: default
+
+task_name: "compare"
+
+tags: ["dev"]
+
+models:
+  folder_levels:
+    - group
+    - model
+    - seed
+  path: ???

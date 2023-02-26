@@ -1,0 +1,21 @@
+_target_: src.models.image_classification.ImageClassification
+
+initializer:
+  _target_: src.initializers.mean_field.MeanFieldInitializer
+  num_layers: ${model.net.num_hidden_layers}
+  initialization: "critical"
+
+optimizer:
+  _target_: torch.optim.SGD
+  _partial_: true
+  lr: 0.0001
+  momentum: 0.95
+
+scheduler: null
+
+net:
+  _target_: src.models.components.dense_net.DenseNet
+  input_shape: [1, 28, 28]
+  hidden_layer_width: 100
+  num_hidden_layers: 100
+  num_classes: 10

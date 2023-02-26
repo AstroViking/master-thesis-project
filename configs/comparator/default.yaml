@@ -1,0 +1,2 @@
+_target_: src.comparators.correlation.CorrelationComparator
+num_samples_per_class: 10
