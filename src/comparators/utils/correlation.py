@@ -80,40 +80,50 @@ def calculate_average_correlations(
         correlations.loc["Same class", (layer, "Correlation")] = same_class_correlations[
             layer
         ].mean()
-        correlations.loc["Same class", (layer, "Variance")] = same_class_correlations[layer].var(
-            ddof=1
-        )
-        n_same_class_correlations = len(same_class_correlations[layer])
-        confidence_interval = stats.t.interval(
-            confidence_interval_percentile,
-            n_same_class_correlations - 1,
-            loc=correlations.loc["Same class", (layer, "Correlation")],
-            scale=np.sqrt(
-                correlations.loc["Same class", (layer, "Variance")] / n_same_class_correlations
-            ),
-        )
-        correlations.loc["Same class", (layer, "Error")] = (
-            confidence_interval[1] - confidence_interval[0]
-        ) / 2
+
+        if len(same_class_correlations[layer]) > 1:
+            correlations.loc["Same class", (layer, "Variance")] = same_class_correlations[
+                layer
+            ].var(ddof=1)
+            n_same_class_correlations = len(same_class_correlations[layer])
+            confidence_interval = stats.t.interval(
+                confidence_interval_percentile,
+                n_same_class_correlations - 1,
+                loc=correlations.loc["Same class", (layer, "Correlation")],
+                scale=np.sqrt(
+                    correlations.loc["Same class", (layer, "Variance")] / n_same_class_correlations
+                ),
+            )
+            correlations.loc["Same class", (layer, "Error")] = (
+                confidence_interval[1] - confidence_interval[0]
+            ) / 2
+        else:
+            correlations.loc["Same class", (layer, "Variance")] = 0
+            correlations.loc["Same class", (layer, "Error")] = 0
 
         correlations.loc["Different class", (layer, "Correlation")] = different_class_correlations[
             layer
         ].mean()
-        correlations.loc["Different class", (layer, "Variance")] = different_class_correlations[
-            layer
-        ].var(ddof=1)
-        n_different_class_correlations = len(different_class_correlations[layer])
-        confidence_interval = stats.t.interval(
-            confidence_interval_percentile,
-            n_different_class_correlations - 1,
-            loc=correlations.loc["Different class", (layer, "Correlation")],
-            scale=np.sqrt(
-                correlations.loc["Different class", (layer, "Variance")]
-                / n_different_class_correlations
-            ),
-        )
-        correlations.loc["Different class", (layer, "Error")] = (
-            confidence_interval[1] - confidence_interval[0]
-        ) / 2
+
+        if len(different_class_correlations[layer]) > 1:
+            correlations.loc[
+                "Different class", (layer, "Variance")
+            ] = different_class_correlations[layer].var(ddof=1)
+            n_different_class_correlations = len(different_class_correlations[layer])
+            confidence_interval = stats.t.interval(
+                confidence_interval_percentile,
+                n_different_class_correlations - 1,
+                loc=correlations.loc["Different class", (layer, "Correlation")],
+                scale=np.sqrt(
+                    correlations.loc["Different class", (layer, "Variance")]
+                    / n_different_class_correlations
+                ),
+            )
+            correlations.loc["Different class", (layer, "Error")] = (
+                confidence_interval[1] - confidence_interval[0]
+            ) / 2
+        else:
+            correlations.loc["Different class", (layer, "Variance")] = 0
+            correlations.loc["Different class", (layer, "Error")] = 0
 
     return correlations

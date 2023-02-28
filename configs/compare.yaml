@@ -14,8 +14,11 @@ task_name: "compare"
 tags: ["dev"]
 
 models:
-  folder_levels:
-    - group
-    - model
+  group:
+    - model.net.num_hidden_layers
+  compare:
+    - model.initializer.initialization
+  combine:
     - seed
-  path: ???
+  search_paths:
+    - ???

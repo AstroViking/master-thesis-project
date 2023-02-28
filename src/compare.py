@@ -1,12 +1,13 @@
+import glob
 from collections import Counter
 from functools import reduce
 from pathlib import Path
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List, Set, Tuple, Union
 
 import hydra
 import pyrootutils
 import torch
-from omegaconf import DictConfig
+from omegaconf import DictConfig, ListConfig, OmegaConf
 from pytorch_lightning import LightningDataModule
 
 pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
@@ -36,6 +37,15 @@ from src.models.inspectable import InspectableModule
 log = utils.get_pylogger(__name__)
 
 
+def get_parameter_tag(config: Union[DictConfig, ListConfig], parameters: List[str]):
+    parameter_values = []
+    for parameter in parameters:
+        parameter_value = OmegaConf.select(config, parameter)
+        parameter_values.append(f"{parameter}={parameter_value}")
+    parameter_tag = ",".join(parameter_values)
+    return parameter_tag if parameter_tag != "" else "default"
+
+
 @utils.task_wrapper
 def compare(cfg: DictConfig) -> Tuple[dict, dict]:
     """Compares multiple given models on a datamodule testset.
@@ -50,7 +60,7 @@ def compare(cfg: DictConfig) -> Tuple[dict, dict]:
         Tuple[dict, dict]: Dict with metrics and dict with all instantiated objects.
     """
 
-    assert cfg.models.path
+    assert len(cfg.models.search_paths) > 0
 
     log.info(f"Instantiating datamodule <{cfg.data._target_}>")
     datamodule: LightningDataModule = hydra.utils.instantiate(cfg.data)
@@ -58,74 +68,60 @@ def compare(cfg: DictConfig) -> Tuple[dict, dict]:
     log.info(f"Instantiating comparator <{cfg.comparator._target_}>")
     comparator: Comparator = hydra.utils.instantiate(cfg.comparator)
 
-    root_path = Path(cfg.models.path)
+    models: Dict[str, Dict[str, Dict[str, InspectableModule]]] = {}
 
-    path_template = str(root_path)
-    path_structure: Dict[str, Set] = {}
+    for search_path in cfg.models.search_paths:
+        for checkpoint_path in glob.glob(search_path):
+            try:
+                model_config_path = Path(checkpoint_path).parent.parent / ".hydra" / "config.yaml"
+                model_config = OmegaConf.load(model_config_path)
+            except Exception as exception:
+                log.warning(
+                    f"Skipping model {checkpoint_path}: Config file {model_config_path} is invalid or could not be loaded.",
+                    exc_info=exception,
+                )
+                continue
 
-    for level, folder_type in enumerate(cfg.models.folder_levels, 1):
+            group_tag = get_parameter_tag(model_config, cfg.models.group)
+            compare_tag = get_parameter_tag(model_config, cfg.models.compare)
+            combine_tag = get_parameter_tag(model_config, cfg.models.combine)
 
-        path_template += "/{" + folder_type + "}"
+            if group_tag not in models:
+                models[group_tag] = {}
 
-        path_structure[folder_type] = set()
+            if compare_tag not in models[group_tag]:
+                models[group_tag][compare_tag] = {}
 
-        log.info("*/" * level)
-        for folder in root_path.glob("*/" * level):
-            if folder.is_dir():
-                path_structure[folder_type].add(folder.parts[-1])
+            if combine_tag not in models[group_tag][compare_tag]:
+                try:
+                    model = ImageClassification.load_from_checkpoint(checkpoint_path)
 
-    log.info(path_structure)
-    log.info(path_template)
+                    # TODO: Figure out why this is needed to load the weights (probably because of submodule net inside)
+                    checkpoint = torch.load(checkpoint_path)
+                    model.load_state_dict(checkpoint["state_dict"])
 
-    if "model" not in path_structure:
-        log.error("No model folder level specified. A model folder level is always needed.")
-        exit(1)
+                    models[group_tag][compare_tag][combine_tag] = model
 
-    if "group" not in path_structure:
-        log.info("No comparison group folder level specified, assuming a single comparison.")
-        model_instances = instantiate_models(
-            path_template, path_structure["model"], path_structure["seed"]
-        )
-        comparator.compare(model_instances, datamodule, Path(cfg.paths.output_dir))
+                except Exception as exception:
+                    log.warning(
+                        f"Skipping model {checkpoint_path}: Checkpoint file is invalid or could not be loaded.",
+                        exc_info=exception,
+                    )
+                    continue
+
+            else:
+                log.warning(
+                    f"Skipping model: {checkpoint_path}: Model with the same parameter combination is already loaded."
+                )
+                continue
+
+    if len(models) > 0:
+        for group in models.keys():
+            comparator.compare(models[group], datamodule, Path(cfg.paths.output_dir) / group)
     else:
-        for group in path_structure["group"]:
-            model_instances = instantiate_models(
-                path_template.replace("{group}", group),
-                path_structure["model"],
-                path_structure["seed"],
-            )
-            comparator.compare(model_instances, datamodule, Path(cfg.paths.output_dir) / group)
+        log.warning("No models found -> No comparisons made.")
 
     return {}, {}
-
-
-def instantiate_models(
-    path_template: str, models: List[str], seeds: List[str]
-) -> Dict[str, List[InspectableModule]]:
-
-    model_instances = {}
-
-    for model_name in models:
-
-        seed_model_instances = []
-
-        for seed in seeds:
-            model_path = (
-                Path(path_template.replace("{model}", model_name).replace("{seed}", seed))
-                / "checkpoints/last.ckpt"
-            )
-
-            model = ImageClassification.load_from_checkpoint(model_path)
-
-            # TODO: Figure out why this is needed to load the weights (probably because of submodule net inside)
-            checkpoint = torch.load(model_path)
-            model.load_state_dict(checkpoint["state_dict"])
-
-            seed_model_instances.append(model)
-
-        model_instances[model_name] = seed_model_instances
-
-    return model_instances
 
 
 @hydra.main(version_base="1.3", config_path="../configs", config_name="compare.yaml")

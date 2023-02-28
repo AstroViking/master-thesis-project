@@ -3,7 +3,7 @@ from typing import Any, Dict, List
 
 import numpy as np
 import torch
-from pytorch_lightning import LightningDataModule, LightningModule
+from pytorch_lightning import LightningDataModule
 from rich.progress import track
 
 import src.figures as fig
@@ -24,7 +24,7 @@ class CorrelationComparator(Comparator):
 
     def compare(
         self,
-        models: Dict[str, List[LightningModule]],
+        models: Dict[str, Dict[str, InspectableModule]],
         datamodule: LightningDataModule,
         output_path: Path,
     ):
@@ -50,24 +50,27 @@ class CorrelationComparator(Comparator):
         log.info(f"New DB Index comparison plot saved to {db_index_path}")
 
     def sample_model_metrics(
-        self, models: List[InspectableModule], datamodule: LightningDataModule
+        self, models: Dict[str, InspectableModule], datamodule: LightningDataModule
     ) -> Dict[str, Any]:
+
+        first_model = list(models.values())[0]
+
         activities = np.zeros(
             (
                 len(models),
                 datamodule.num_classes,
-                models[0].net.num_hidden_layers,
+                first_model.net.num_hidden_layers,
                 self.num_samples_per_class,
-                models[0].net.hidden_layer_width,
+                first_model.net.hidden_layer_width,
             )
         )
 
-        for seed, seed_model in enumerate(
-            track(models, description="Sampling metrics for model...")
+        for seed, (_, model) in enumerate(
+            track(models.items(), description="Sampling metrics for model...")
         ):
 
-            seed_model.eval()
-            inspected_model = seed_model.inspect()
+            model.eval()
+            inspected_model = model.inspect()
             datamodule.setup("test")
 
             with torch.no_grad():

@@ -36,13 +36,20 @@ def calculate_davies_bouldin_index(
             )
 
         db_indexes.loc[(layer, "DB Index")] = db_index_samples.mean()
-        db_indexes.loc[(layer, "Variance")] = db_index_samples.var(ddof=1)
-        confidence_interval = stats.t.interval(
-            confidence_interval_percentile,
-            n_seeds - 1,
-            loc=db_indexes.loc[(layer, "DB Index")],
-            scale=np.sqrt(db_indexes.loc[(layer, "Variance")] / n_seeds),
-        )
-        db_indexes.loc[(layer, "Error")] = (confidence_interval[1] - confidence_interval[0]) / 2
+
+        if len(db_index_samples) > 1:
+            db_indexes.loc[(layer, "Variance")] = db_index_samples.var(ddof=1)
+            confidence_interval = stats.t.interval(
+                confidence_interval_percentile,
+                n_seeds - 1,
+                loc=db_indexes.loc[(layer, "DB Index")],
+                scale=np.sqrt(db_indexes.loc[(layer, "Variance")] / n_seeds),
+            )
+            db_indexes.loc[(layer, "Error")] = (
+                confidence_interval[1] - confidence_interval[0]
+            ) / 2
+        else:
+            db_indexes.loc[(layer, "Variance")] = 0
+            db_indexes.loc[(layer, "Error")] = 0
 
     return db_indexes
