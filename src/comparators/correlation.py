@@ -1,16 +1,15 @@
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List
 
 import numpy as np
-import pandas as pd
 import torch
-from plotly import graph_objects as go
 from pytorch_lightning import LightningDataModule, LightningModule
 from rich.progress import track
 
 import src.figures as fig
 
 from .. import utils
+from ..models.inspectable import InspectableModule
 from .comparator import Comparator
 from .utils.correlation import calculate_average_correlations
 from .utils.db_index import calculate_davies_bouldin_index
@@ -51,7 +50,7 @@ class CorrelationComparator(Comparator):
         log.info(f"New DB Index comparison plot saved to {db_index_path}")
 
     def sample_model_metrics(
-        self, models: List[LightningModule], datamodule: LightningDataModule
+        self, models: List[InspectableModule], datamodule: LightningDataModule
     ) -> Dict[str, Any]:
         activities = np.zeros(
             (
@@ -68,7 +67,7 @@ class CorrelationComparator(Comparator):
         ):
 
             seed_model.eval()
-            inspected_model = seed_model.net.inspect()
+            inspected_model = seed_model.inspect()
             datamodule.setup("test")
 
             with torch.no_grad():

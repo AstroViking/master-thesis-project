@@ -2,33 +2,23 @@ from typing import Any, List
 
 import torch
 from pytorch_lightning import LightningModule
+from surgeon_pytorch import Inspect
 from torchmetrics import MaxMetric, MeanMetric
 from torchmetrics.classification.accuracy import Accuracy
 
 from src.initializers.initializer import Initializer
+from src.models.components.inspectable import InspectableNet
+from src.models.inspectable import InspectableModule
 
 
-class ImageClassification(LightningModule):
-    """Example of LightningModule for Image classification.
-
-    A LightningModule organizes your PyTorch code into 6 sections:
-        - Computations (init)
-        - Train loop (training_step)
-        - Validation loop (validation_step)
-        - Test loop (test_step)
-        - Prediction Loop (predict_step)
-        - Optimizers and LR Schedulers (configure_optimizers)
-
-    Docs:
-        https://pytorch-lightning.readthedocs.io/en/latest/common/lightning_module.html
-    """
-
+class ImageClassification(InspectableModule):
     def __init__(
         self,
-        net: torch.nn.Module,
+        net: InspectableNet,
         initializer: Initializer,
         optimizer: torch.optim.Optimizer,
         scheduler: torch.optim.lr_scheduler,
+        num_classes: int,
     ):
         super().__init__()
 
@@ -36,7 +26,9 @@ class ImageClassification(LightningModule):
         # also ensures init params will be stored in ckpt
         self.save_hyperparameters()
 
+        # Load net and adapt output layer to num_classes of dataset
         self.net = net
+        self.net.adapt_output_layer(num_classes)
 
         # Initialize weights and biases according to provided initializer
         self.net.apply(initializer.initialize)
@@ -45,9 +37,9 @@ class ImageClassification(LightningModule):
         self.criterion = torch.nn.CrossEntropyLoss()
 
         # metric objects for calculating and averaging accuracy across batches
-        self.train_acc = Accuracy(task="multiclass", num_classes=10)
-        self.val_acc = Accuracy(task="multiclass", num_classes=10)
-        self.test_acc = Accuracy(task="multiclass", num_classes=10)
+        self.train_acc = Accuracy(task="multiclass", num_classes=num_classes)
+        self.val_acc = Accuracy(task="multiclass", num_classes=num_classes)
+        self.test_acc = Accuracy(task="multiclass", num_classes=num_classes)
 
         # for averaging loss across batches
         self.train_loss = MeanMetric()
@@ -56,6 +48,9 @@ class ImageClassification(LightningModule):
 
         # for tracking best so far validation accuracy
         self.val_acc_best = MaxMetric()
+
+    def inspect(self) -> Inspect:
+        return self.net.inspect()
 
     def forward(self, x: torch.Tensor):
         return self.net(x)
@@ -68,6 +63,7 @@ class ImageClassification(LightningModule):
     def model_step(self, batch: Any):
         x, y = batch
         logits = self.forward(x)
+
         loss = self.criterion(logits, y)
         preds = torch.argmax(logits, dim=1)
         return loss, preds, y

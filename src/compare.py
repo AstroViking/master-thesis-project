@@ -1,4 +1,5 @@
 from collections import Counter
+from functools import reduce
 from pathlib import Path
 from typing import Dict, List, Set, Tuple
 
@@ -6,7 +7,7 @@ import hydra
 import pyrootutils
 import torch
 from omegaconf import DictConfig
-from pytorch_lightning import LightningDataModule, LightningModule
+from pytorch_lightning import LightningDataModule
 
 pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 # ------------------------------------------------------------------------------------ #
@@ -30,6 +31,7 @@ import src.figures as fig
 from src import utils
 from src.comparators.comparator import Comparator
 from src.models.image_classification import ImageClassification
+from src.models.inspectable import InspectableModule
 
 log = utils.get_pylogger(__name__)
 
@@ -99,7 +101,7 @@ def compare(cfg: DictConfig) -> Tuple[dict, dict]:
 
 def instantiate_models(
     path_template: str, models: List[str], seeds: List[str]
-) -> Dict[str, List[LightningModule]]:
+) -> Dict[str, List[InspectableModule]]:
 
     model_instances = {}
 

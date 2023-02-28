@@ -1,0 +1,10 @@
+_target_: src.data.image_datamodule.ImageDataModule
+data_dir: ${paths.data_dir}
+dataset_class: "torchvision.datasets.EMNIST"
+dataset_class_arguments:
+  split: "letters"
+num_classes: 27
+train_val_test_split: [114_400, 10_400, 20_800]
+batch_size: 128
+num_workers: 5
+pin_memory: False
