@@ -3,6 +3,7 @@ from typing import List, Optional, Tuple
 import hydra
 import pyrootutils
 import pytorch_lightning as pl
+import torch
 from omegaconf import DictConfig
 from pytorch_lightning import Callback, LightningDataModule, LightningModule, Trainer
 from pytorch_lightning.loggers import Logger
@@ -26,6 +27,8 @@ pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 # ------------------------------------------------------------------------------------ #
 
 from src import utils
+from src.models.image_classification import ImageClassification
+from src.models.inspectable import InspectableModule
 
 log = utils.get_pylogger(__name__)
 
@@ -52,8 +55,32 @@ def train(cfg: DictConfig) -> Tuple[dict, dict]:
     log.info(f"Instantiating datamodule <{cfg.data._target_}>")
     datamodule: LightningDataModule = hydra.utils.instantiate(cfg.data)
 
-    log.info(f"Instantiating model <{cfg.model._target_}>")
-    model: LightningModule = hydra.utils.instantiate(cfg.model, num_classes=cfg.data.num_classes)
+    if cfg.transfer_learning.enabled:
+
+        try:
+            model: InspectableModule = ImageClassification.load_from_checkpoint(
+                cfg.transfer_learning.model_path
+            )
+            model.change_num_classes(datamodule.num_classes)
+            model.initialize(cfg.transfer_learning.num_train_last_layers)
+
+        except Exception as exception:
+            log.error(
+                f"Model at {cfg.transfer_learning.model_path} could not be loaded!",
+                exc_info=exception,
+            )
+            exit(1)
+    else:
+        log.info(f"Instantiating model <{cfg.model._target_}>")
+        model = hydra.utils.instantiate(cfg.model)
+
+        if model.net.num_classes != datamodule.num_classes:
+            log.warn(
+                f"Model has a different amount of classes in the output layer {model.net.num_classes} than the dataset {datamodule.num_classes}: Model has automatically been adapted to fit the data!"
+            )
+            model.change_num_classes(datamodule.num_classes)
+
+        model.initialize()
 
     log.info("Instantiating callbacks...")
     callbacks: List[Callback] = utils.instantiate_callbacks(cfg.get("callbacks"))

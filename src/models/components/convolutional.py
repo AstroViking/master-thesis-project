@@ -15,7 +15,7 @@ class ConvolutionalNet(InspectableNet):
         num_classes: int,
         non_linearity=nn.Tanh(),
     ):
-        super().__init__(input_shape, non_linearity)
+        super().__init__(input_shape, num_classes, non_linearity)
 
         num_in_channels = self.input_shape[0]
         input_output_size = self.input_shape[1]

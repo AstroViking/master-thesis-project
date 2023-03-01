@@ -95,11 +95,6 @@ def compare(cfg: DictConfig) -> Tuple[dict, dict]:
             if combine_tag not in models[group_tag][compare_tag]:
                 try:
                     model = ImageClassification.load_from_checkpoint(checkpoint_path)
-
-                    # TODO: Figure out why this is needed to load the weights (probably because of submodule net inside)
-                    checkpoint = torch.load(checkpoint_path)
-                    model.load_state_dict(checkpoint["state_dict"])
-
                     models[group_tag][compare_tag][combine_tag] = model
 
                 except Exception as exception:

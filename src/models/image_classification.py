@@ -18,7 +18,6 @@ class ImageClassification(InspectableModule):
         initializer: Initializer,
         optimizer: torch.optim.Optimizer,
         scheduler: torch.optim.lr_scheduler,
-        num_classes: int,
     ):
         super().__init__()
 
@@ -28,18 +27,15 @@ class ImageClassification(InspectableModule):
 
         # Load net and adapt output layer to num_classes of dataset
         self.net = net
-        self.net.adapt_output_layer(num_classes)
-
-        # Initialize weights and biases according to provided initializer
-        self.net.apply(initializer.initialize)
+        self.initializer = initializer
 
         # loss function
         self.criterion = torch.nn.CrossEntropyLoss()
 
         # metric objects for calculating and averaging accuracy across batches
-        self.train_acc = Accuracy(task="multiclass", num_classes=num_classes)
-        self.val_acc = Accuracy(task="multiclass", num_classes=num_classes)
-        self.test_acc = Accuracy(task="multiclass", num_classes=num_classes)
+        self.train_acc = Accuracy(task="multiclass", num_classes=self.net.num_classes)
+        self.val_acc = Accuracy(task="multiclass", num_classes=self.net.num_classes)
+        self.test_acc = Accuracy(task="multiclass", num_classes=self.net.num_classes)
 
         # for averaging loss across batches
         self.train_loss = MeanMetric()
@@ -48,6 +44,27 @@ class ImageClassification(InspectableModule):
 
         # for tracking best so far validation accuracy
         self.val_acc_best = MaxMetric()
+
+    def initialize(self, num_train_last_layers: int = -1):
+        if num_train_last_layers > 0:
+            self.net.freeze_first_n_hidden_layers(
+                self.net.num_hidden_layers - num_train_last_layers
+            )
+
+            # Initialize weights and biases according to provided initializer for n last layers
+            self.net.apply_last_n_hidden_layers(self.initializer.initialize, num_train_last_layers)
+
+        else:
+            # Initialize weights and biases according to provided initializer
+            self.net.apply(self.initializer.initialize)
+
+    def change_num_classes(self, num_classes: int):
+        self.net.adapt_output_layer(num_classes)
+
+        # metric objects for calculating and averaging accuracy across batches
+        self.train_acc = Accuracy(task="multiclass", num_classes=num_classes)
+        self.val_acc = Accuracy(task="multiclass", num_classes=num_classes)
+        self.test_acc = Accuracy(task="multiclass", num_classes=num_classes)
 
     def inspect(self) -> Inspect:
         return self.net.inspect()

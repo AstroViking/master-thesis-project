@@ -1,0 +1,39 @@
+# @package _global_
+
+defaults:
+  - override /data: mnist
+  - override /model: convolutional_1x28x28_20x32_10
+  - override /callbacks: default
+  - override /trainer: default
+
+trainer:
+  max_epochs: 20
+
+extras:
+  print_config: False
+
+tags:
+  [
+    "mnist",
+    "convolutional_net",
+    "different_num_hidden_layers",
+    "h-${model.net.num_hidden_layers}",
+    "${model.initializer.initialization}",
+  ]
+
+logger:
+  wandb:
+    tags: ${tags}
+    group: "mnist_h-${model.net.num_hidden_layers}"
+    name: ${model.initializer.initialization}
+
+hydra:
+  sweeper:
+    params:
+      seed: 41,42,43,44,45
+      model.net.num_hidden_layers: 5,10,20,40,60,80,100
+      model.initializer.initialization: critical,chaotic,ordered
+
+  sweep:
+    dir: ${paths.log_dir}/sweep_num_hidden_layers_convolutional/${now:%Y-%m-%d}_${now:%H-%M-%S}/h-${model.net.num_hidden_layers}/${model.initializer.initialization}
+    subdir: seed-${seed}

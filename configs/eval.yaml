@@ -3,7 +3,7 @@
 defaults:
   - _self_
   - data: mnist # choose datamodule with `test_dataloader()` for evaluation
-  - model: dense_1x28x28_100x100
+  - model: dense_1x28x28_100x100_10
   - logger: null
   - trainer: default
   - paths: default

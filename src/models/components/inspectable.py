@@ -7,7 +7,12 @@ from torch import nn
 
 
 class InspectableNet(nn.Module):
-    def __init__(self, input_shape: Tuple[int, int, int], non_linearity: nn.Module = nn.Tanh()):
+    def __init__(
+        self,
+        input_shape: Tuple[int, int, int],
+        num_classes: int,
+        non_linearity: nn.Module = nn.Tanh(),
+    ):
         super().__init__()
 
         self.input_layer: nn.Module = nn.Identity()
@@ -15,6 +20,7 @@ class InspectableNet(nn.Module):
         self.output_layer: nn.Module = nn.Identity()
 
         self.input_shape = input_shape
+        self.num_classes = num_classes
         self.non_linearity = non_linearity
 
     @abstractmethod
@@ -60,5 +66,5 @@ class InspectableNet(nn.Module):
         self.hidden_layers[:n].requires_grad_(False)
 
     def apply_last_n_hidden_layers(self, callback: Callable[[nn.Module], None], n):
-        self.hidden_layers[n:].apply(callback)
+        self.hidden_layers[-n:].apply(callback)
         self.output_layer.apply(callback)

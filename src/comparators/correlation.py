@@ -66,7 +66,7 @@ class CorrelationComparator(Comparator):
         )
 
         for seed, (_, model) in enumerate(
-            track(models.items(), description="Sampling metrics for model...")
+            track(models.items(), description="Sampling model activities...")
         ):
 
             model.eval()
@@ -80,10 +80,8 @@ class CorrelationComparator(Comparator):
                     samples, _ = next(iter(class_dataloader))
                     _, hidden_layer_activities = inspected_model.forward(samples)
                     activities[seed, c] = np.array(
-                        [a.cpu().numpy() for a in hidden_layer_activities]
+                        [a.reshape(a.size(0), -1).cpu().numpy() for a in hidden_layer_activities]
                     )
-
-        activities = np.array(activities)
 
         return {
             "activities": activities,

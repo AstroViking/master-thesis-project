@@ -17,7 +17,7 @@ class DenseNet(InspectableNet):
         num_classes: int,
         non_linearity=nn.Tanh(),
     ):
-        super().__init__(input_shape, non_linearity)
+        super().__init__(input_shape, num_classes, non_linearity)
 
         self._hidden_layer_width = hidden_layer_width
 

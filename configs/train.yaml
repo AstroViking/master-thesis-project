@@ -6,6 +6,7 @@ defaults:
   - _self_
   - data: mnist
   - model: dense_1x28x28_100x100_10
+  - transfer_learning: disabled
   - callbacks: default
   - logger:
       - wandb

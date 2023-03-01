@@ -3,7 +3,8 @@ from typing import Tuple
 
 import numpy as np
 import pandas as pd
-from numba import njit
+from numba import njit, prange
+from rich.progress import track
 from scipy import stats
 
 
@@ -14,7 +15,7 @@ def _delete_from_list(list, element):
     return np.array(list2)
 
 
-@njit
+@njit(parallel=True)
 def _calculate_correlations(
     activities: np.ndarray, class_combinations: np.ndarray, num_samples_from_second_class: int
 ) -> np.ndarray:
@@ -26,10 +27,14 @@ def _calculate_correlations(
         n_seeds * len(class_combinations) * n_samples * num_samples_from_second_class
     )
 
+    num_samples_from_second_class = (
+        num_samples_from_second_class if num_samples_from_second_class < n_samples else n_samples
+    )
+
     correlations = np.zeros((n_layers, n_correlation_samples))
     sample_indices = list(range(n_samples))
 
-    for layer in range(n_layers):
+    for layer in prange(n_layers):
         sample_idx = 0
         for seed in range(n_seeds):
             for c1, c2 in class_combinations:
@@ -49,7 +54,7 @@ def _calculate_correlations(
 
 def calculate_average_correlations(
     activities: np.ndarray,
-    num_samples_from_second_class: int = 1,
+    num_samples_from_second_class: int = 9,
     confidence_interval_percentile: float = 0.99,
 ) -> pd.DataFrame:
 
@@ -75,7 +80,10 @@ def calculate_average_correlations(
         ),
     )
 
-    for layer in range(same_class_correlations.shape[0]):
+    for layer in track(
+        range(same_class_correlations.shape[0]),
+        description="Calculating correlations for model...",
+    ):
 
         correlations.loc["Same class", (layer, "Correlation")] = same_class_correlations[
             layer
