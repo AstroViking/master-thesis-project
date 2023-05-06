@@ -1,8 +1,9 @@
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
 
 import numpy as np
 import torch
+from omegaconf import DictConfig, ListConfig, OmegaConf
 from pytorch_lightning import LightningDataModule
 from rich.progress import track
 
@@ -24,36 +25,55 @@ class CorrelationComparator(Comparator):
 
     def compare(
         self,
-        models: Dict[str, Dict[str, InspectableModule]],
+        models: Dict[str, Dict[str, tuple[Union[DictConfig, ListConfig], InspectableModule]]],
         datamodule: LightningDataModule,
         output_path: Path,
     ):
 
         results = {
-            label: self.sample_model_metrics(model, datamodule) for label, model in models.items()
+            label: self.sample_model_metrics(models, datamodule)
+            for label, models in models.items()
         }
 
         Path(output_path).mkdir(parents=True, exist_ok=True)
 
+        config_path = output_path / "config.yaml"
+
+        output_config = DictConfig(
+            {
+                "comparison": {
+                    label: [label for label in models.keys()] for label, models in models.items()
+                },
+                "model_config": OmegaConf.merge(
+                    *[model[0] for models in models.values() for model in models.values()]
+                ),
+            }
+        )
+
+        with open(config_path, "w") as config_file:
+            OmegaConf.save(config=output_config, f=config_file.name)
+
         correlations_path = output_path / "correlations.png"
         fig.Correlation(
-            f"Hidden layer correlation for {datamodule.name}",
+            "Hidden layer correlation",
             {label: element["correlations"] for label, element in results.items()},
         ).save(correlations_path)
         log.info(f"New correlation comparison plot saved to {correlations_path}")
 
         db_index_path = output_path / "db_index.png"
         fig.DaviesBouldinIndex(
-            f"DB-Index for {datamodule.name}",
+            "DB-Index",
             {label: element["db_index"] for label, element in results.items()},
         ).save(db_index_path)
         log.info(f"New DB Index comparison plot saved to {db_index_path}")
 
     def sample_model_metrics(
-        self, models: Dict[str, InspectableModule], datamodule: LightningDataModule
+        self,
+        models: Dict[str, tuple[Union[DictConfig, ListConfig], InspectableModule]],
+        datamodule: LightningDataModule,
     ) -> Dict[str, Any]:
 
-        first_model = list(models.values())[0]
+        first_model = list(models.values())[0][1]
 
         activities = np.zeros(
             (
@@ -65,8 +85,8 @@ class CorrelationComparator(Comparator):
             )
         )
 
-        for seed, (_, model) in enumerate(
-            track(models.items(), description="Sampling model activities...")
+        for seed, (config, model) in enumerate(
+            track(models.values(), description="Sampling model activities...")
         ):
 
             model.eval()

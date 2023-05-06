@@ -6,7 +6,6 @@ from typing import Dict, List, Set, Tuple, Union
 
 import hydra
 import pyrootutils
-import torch
 from omegaconf import DictConfig, ListConfig, OmegaConf
 from pytorch_lightning import LightningDataModule
 
@@ -68,7 +67,9 @@ def compare(cfg: DictConfig) -> Tuple[dict, dict]:
     log.info(f"Instantiating comparator <{cfg.comparator._target_}>")
     comparator: Comparator = hydra.utils.instantiate(cfg.comparator)
 
-    models: Dict[str, Dict[str, Dict[str, InspectableModule]]] = {}
+    models: Dict[
+        str, Dict[str, Dict[str, tuple[Union[DictConfig, ListConfig], InspectableModule]]]
+    ] = {}
 
     for search_path in cfg.models.search_paths:
         for checkpoint_path in glob.glob(search_path):
@@ -95,7 +96,7 @@ def compare(cfg: DictConfig) -> Tuple[dict, dict]:
             if combine_tag not in models[group_tag][compare_tag]:
                 try:
                     model = ImageClassification.load_from_checkpoint(checkpoint_path)
-                    models[group_tag][compare_tag][combine_tag] = model
+                    models[group_tag][compare_tag][combine_tag] = (model_config, model)
 
                 except Exception as exception:
                     log.warning(
